@@ -423,7 +423,6 @@ mod:hook("ConstantElementNotificationFeed", "_generate_notification_data", funct
         return notif_data
     else
         return(func(self, message_type, data))
-        return(func(self, message_type, data))
     end
 end)
 
@@ -660,7 +659,6 @@ mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit
         local raw_breed_name = NetworkLookup.breed_names[breed_id]
         local breed_name = mod.clean_breed_name(raw_breed_name)
         local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
-        if spawn_record_result.notif then
         if spawn_record_result.notif then
            display_notification(breed_name, "spawn")
         end
