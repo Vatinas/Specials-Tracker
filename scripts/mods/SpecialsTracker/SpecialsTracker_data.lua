@@ -109,37 +109,11 @@ end
 -------------------------------------------------------
 
 mod.interesting_breed_names = {}
--- NB: A "clean breed name" is a breed_name cleaned by mod.clean_breed_name, which removed the possible "_mutator" marker at the end of the breed name, *and* collapses "renegade_flamer" and "cultist_flamer" into the same clean_breed_name "flamer" in order to track them together. Unless specified otherwise, "breed_name"'s are assumed to have been "cleaned".
+-- NB: A "clean breed name" is a breed_name cleaned by mod.clean_breed_name, which removed the possible "_mutator" marker at the end of the breed name, *and* collapses "renegade_flamer" and "cultist_flamer" into the same clean_breed_name "flamer" in order to track them together. Unless specified otherwise, "breed_name"'s are assumed to have been "cleaned". The names used here are the cleaned names of currently trackable units.
 -- mod.interesting_breed_names.array is the *sorted array* of the *cleaned* breed_name's *trackable* (not tracked!) by the mod.
     -- NB: The order used for this file, and thus the mod options, only involves the monster tag, and alphabetical ordering, since we don't yet have access to the mod options. Additional layers of ordering will be added in the main file, for the HUD element widgets.
 -- mod.interesting_breed_names.inverted_table[breed_name] = true if breed_name is in mod.interesting_breed_names.array, nil otherwise
 -- mod.interesting_breed_names.sort() is defined in the main file
-
---[[
-mod.interesting_breed_names.array = {}
-mod.interesting_breed_names.inverted_table = {}
-
-mod.interesting_breed_names.init = function()
-    mod.interesting_breed_names.array = {}
-    mod.interesting_breed_names.inverted_table = {}
-    for breed_name, breed in pairs(Breeds) do
-        if breed_name ~= "chaos_plague_ogryn_sprayer"
-        and breed.display_name
-        and breed.display_name ~= "loc_breed_display_name_undefined"
-        and not breed.boss_health_bar_disabled
-        and breed.tags and (breed.tags.special or breed.tags.monster) then
-            local clean_name = mod.clean_breed_name(breed_name)
-            if not mod.interesting_breed_names.inverted_table[clean_name] then
-                table.insert(mod.interesting_breed_names.array, clean_name)
-                mod.interesting_breed_names.inverted_table[clean_name] = true
-            end
-        end
-    end
-    table.sort(mod.interesting_breed_names.array, monster_then_alphabetical_order)
-end
-
-mod.interesting_breed_names.init()
---]]
 
 mod.interesting_breed_names.array = {
     "chaos_beast_of_nurgle",
@@ -160,12 +134,6 @@ for _, clean_brd_name in pairs(mod.interesting_breed_names.array) do
     mod.interesting_breed_names.inverted_table[clean_brd_name] = true
 end
 
-
----------------------------------------------------------------------------
----------------------------------------------------------------------------
---                      Utilities definitions
----------------------------------------------------------------------------
----------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -216,7 +184,6 @@ for _, i in pairs({
 end
 
 local default_overlay_tracking = function(clean_brd_name)
-    -- if mod.is_monster(clean_brd_name) then
     if clean_brd_name == "monsters" then
         return "only_if_active"
     elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" then
@@ -356,7 +323,7 @@ local breed_widget = function(clean_brd_name)
     local sub_wid_toggle_notif = {
         setting_id = clean_brd_name.."_notif",
         type = "checkbox",
-        default_value = clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "monsters", --mod.is_monster(clean_brd_name),
+        default_value = clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "monsters",
     }
     local sub_wid_priority_lvl = {
         setting_id = clean_brd_name.."_priority",
@@ -396,7 +363,7 @@ local widgets = {
     {
         setting_id = "font",
         type = "dropdown",
-        default_value = default_font, --font_options[1].value,
+        default_value = default_font,
         options = font_options,
     },
     {

@@ -13,6 +13,7 @@ local ItemPassTemplates = require("scripts/ui/pass_templates/item_pass_templates
 
 local HudElementSpecialsTracker = class("HudElementSpecialsTracker", "HudElementBase")
 
+
 ---------------------------
 -- Various global constants
 
@@ -85,18 +86,6 @@ local font_base_padding = function(font_name)
 		res.bottom = 5
 	end
 	return res
-end
-
-local show_breed = function(breed_name)
-	-- Checks the mod options currently stored, and returns whether the breed's widget should be displayed
-	if mod.tracked_units.overlay_breeds_inverted_table[breed_name] then
-		if mod.tracked_units.overlay_only_if_active[breed_name] then
-			return mod.tracked_units.unit_count[breed_name] ~= 0
-		else
-			return true
-		end
-	end
-	return false
 end
 
 local x_offset = function(type)
@@ -198,7 +187,7 @@ mod.hud_dimensions.init()
 local show_breed = function(breed_name)
 	-- Checks the mod options currently stored, and returns whether the breed's widget should be displayed
 	if mod.tracked_units.overlay_breeds_inverted_table[breed_name] then
-		if mod.color.hud.monster_only_if_alive and Breeds[breed_name].tags and Breeds[breed_name].tags.monster then
+		if mod.tracked_units.overlay_only_if_active[breed_name] then
 			return mod.tracked_units.unit_count[breed_name] ~= 0
 		else
 			return true
@@ -206,6 +195,7 @@ local show_breed = function(breed_name)
 	end
 	return false
 end
+
 
 ---------------------------------
 -- Creating the scenegraph object
@@ -450,6 +440,7 @@ local background_test_widget = UIWidget.create_definition(
 )
 --]]
 
+
 ---------------------------------------------
 -- Combining the different widget definitions
 
@@ -464,6 +455,7 @@ widget_definitions["widget_background"] = background_widget
 
 --------------------------------------
 -- Initialising the HUD element itself
+
 HudElementSpecialsTracker.init = function(self, parent, draw_layer, start_scale)
 	for element,_ in pairs(mod.hud_refresh_flags) do
 		mod.hud_refresh_flags[element] = true

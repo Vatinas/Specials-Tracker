@@ -12,21 +12,7 @@ local clean_brd_name = function(breed_name)
         return breed_name_no_mutator_marker
     end
 end
---[[
-local interesting_breeds = {}
-for breed_name, breed in pairs(Breeds) do
-    if breed_name ~= "chaos_plague_ogryn_sprayer"
-    and breed.display_name
-    and breed.display_name ~= "loc_breed_display_name_undefined"
-    and not breed.boss_health_bar_disabled
-    and breed.tags and (breed.tags.special or breed.tags.monster) then
-        local clean_name = clean_brd_name(breed_name)
-        if not table.array_contains(interesting_breeds, clean_name) then
-            table.insert(interesting_breeds, clean_name)
-        end
-    end
-end
---]]
+
 local interesting_breeds = {
     "chaos_beast_of_nurgle",
     "chaos_hound",
@@ -231,8 +217,8 @@ for breed_name, breed in pairs(Breeds) do
     end
 end
 
--------------------------------------
--- Shorter names for mod options menu
+-----------------------------------------
+-- Shorter names for mod the options menu
 
 loc["monsters"] = {
     en = "Monstrosities"
@@ -240,9 +226,8 @@ loc["monsters"] = {
 loc["flamer"] = {
     en = "Flamers (Scab / Tox)"
 }
--- The mutant isn't needed, but leaving it here for the sake of completeness
-loc["cultist_mutant"] = {
-    en = "Mutant"
+loc["cultist_mutant"] = { 
+    en = "Mutant" -- The mutant isn't needed, but leaving it here for the sake of completeness
 }
 loc["chaos_hound"] = {
     en = "Hound"
