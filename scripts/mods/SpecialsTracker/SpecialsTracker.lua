@@ -3,9 +3,23 @@ local mod = get_mod("SpecialsTracker")
 require("scripts/foundation/utilities/math")
 require("scripts/foundation/utilities/color")
 
+require("scripts/foundation/utilities/math")
+require("scripts/foundation/utilities/color")
+
 local Breeds = require("scripts/settings/breed/breeds")
 local TextUtils = require("scripts/utilities/ui/text")
 local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
+local ConstantElementNotificationFeed = require("scripts/ui/constant_elements/elements/notification_feed/constant_element_notification_feed")
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                         Global definitions
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-------------------------------------------------------
+--               Generic utilities
+-------------------------------------------------------
 local ConstantElementNotificationFeed = require("scripts/ui/constant_elements/elements/notification_feed/constant_element_notification_feed")
 
 ---------------------------------------------------------------------------
@@ -66,6 +80,10 @@ mod.sort_breed_names = function(a,b)
         end
     end
 end
+
+-------------------------------------------------------
+--                     color
+-------------------------------------------------------
 
 -------------------------------------------------------
 --                     color
@@ -194,8 +212,10 @@ Data:
     mod.tracked_units.units[breed_name]
         An *array* containing active units of breed_name. Will be tracked to purge dead units regardless of whether breed_name is tracked or not, but spawned units will only be added to it if the breed is tracked.
         NB: -.units[breed_name] will never be nil
+        NB: -.units[breed_name] will never be nil
     mod.tracked_units.unit_count[breed_name]
         The number of active units of breed_name (which is simply #mod.tracked_units.unit_count[breed_name], but is stored separately to avoid checking the array size at every HUD element update)
+        NB: -.unit_count[breed_name] will never be nil
         NB: -.unit_count[breed_name] will never be nil
     mod.tracked_units.[tracking method]_breeds_array
         Array containing the breed names tracked with [tracking_method], which can be "notif" or "overlay". Array is sorted according to the mod.sort_breed_names order
@@ -208,6 +228,8 @@ Data:
 
 Methods:
     mod.tracked_units.init()
+        Initialises mod.tracked_units.breeds_array and mod.tracked_units.breeds_inverted_table so they can be used to fetch tracked breeds.
+        NB: This does not reset the -.units and -.unit_count tables, but since we constantly purge the dead units from -.units and only insert it with spawning units that are tracked (i.e. in the tables the -.init() function refreshes), untracked breeds will slowly be emptied of units naturally when they died.
         Initialises mod.tracked_units.breeds_array and mod.tracked_units.breeds_inverted_table so they can be used to fetch tracked breeds.
         NB: This does not reset the -.units and -.unit_count tables, but since we constantly purge the dead units from -.units and only insert it with spawning units that are tracked (i.e. in the tables the -.init() function refreshes), untracked breeds will slowly be emptied of units naturally when they died.
     mod.tracked_units.clean_dead_units()
@@ -230,6 +252,7 @@ for _, breed_name in pairs(mod.interesting_breed_names.array) do
 end
 
 mod.tracked_units.init = function()
+    mod.tracked_units.priority_levels = {}
     mod.tracked_units.priority_levels = {}
     mod.tracked_units.notif_breeds_array = {}
     mod.tracked_units.notif_breeds_inverted_table = {}
@@ -332,6 +355,13 @@ end
 ---------------------------------------------------------------------------
 
 -- See the SpecialsTracker_HUDElement file for the actual definitions
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                HUD element (overlay) initialisation
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- See the SpecialsTracker_HUDElement file for the actual definitions
 
 local hud_element = {
 	class_name = "HudElementSpecialsTracker",
@@ -366,6 +396,7 @@ mod:hook_require("scripts/ui/hud/hud_elements_player_onboarding", add_hud_elemen
 
 mod:hook("ConstantElementNotificationFeed", "_generate_notification_data", function(func, self, message_type, data)
     -- Add a "spawn" and a "death" notification types for our mod
+    -- Add a "spawn" and a "death" notification types for our mod
     if message_type == "spawn" or message_type == "death" then
         local notif_data = {
             type = "default",
@@ -392,8 +423,14 @@ mod:hook("ConstantElementNotificationFeed", "_generate_notification_data", funct
         return notif_data
     else
         return(func(self, message_type, data))
+        return(func(self, message_type, data))
     end
 end)
+
+local get_breed_color = function(breed_name)
+    local breed_priority = mod.tracked_units.priority_levels[breed_name]
+    return mod.color.notif.table[breed_priority]
+end
 
 local get_breed_color = function(breed_name)
     local breed_priority = mod.tracked_units.priority_levels[breed_name]
@@ -571,6 +608,17 @@ Method [2] is more reliable than method [1] when it comes to actually catching e
 --]]
 
 -- Tracking method [1]
+--[[
+Two methods are used conjointly to track enemy deaths:
+
+[1] Hook the function that sets units dead. This allows us to catch and record unit deaths instantly, but only when a death actually calls this function, which strangely doesn't seem to happen for all enemy deaths.
+
+[2] Check all currently tracked units to check if they are dead. This allows us to catch *all* enemy deaths, but enemies are sometimes set to dead a few seconds after they die from a gameplay point of view.
+
+Method [2] is more reliable than method [1] when it comes to actually catching enemy deaths, but less reliable when it comes to being fast at recording deaths - which is why we use the two conjointly.
+--]]
+
+-- Tracking method [1]
 mod:hook_safe(CLASS.MinionDeathManager, "set_dead", function (self, unit, attack_direction, hit_zone_name, damage_profile_name, do_ragdoll_push, herding_template_name)
     local breed_name = mod.tracked_units.record_unit_death(unit)
     if breed_name and mod.tracked_units.notif_breeds_inverted_table[breed_name] then
@@ -578,6 +626,7 @@ mod:hook_safe(CLASS.MinionDeathManager, "set_dead", function (self, unit, attack
     end
 end)
 
+-- Tracking method [2]
 -- Tracking method [2]
 mod.update = function(dt)
     local nb_of_deaths_per_breed = mod.tracked_units.clean_dead_units()
@@ -589,6 +638,8 @@ mod.update = function(dt)
             end
         end
     end
+    -- Update multiplicit notifs color
+    refresh_notif_text_colors()
     -- Update multiplicit notifs color
     refresh_notif_text_colors()
 end
@@ -609,6 +660,7 @@ mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit
         local raw_breed_name = NetworkLookup.breed_names[breed_id]
         local breed_name = mod.clean_breed_name(raw_breed_name)
         local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
+        if spawn_record_result.notif then
         if spawn_record_result.notif then
            display_notification(breed_name, "spawn")
         end

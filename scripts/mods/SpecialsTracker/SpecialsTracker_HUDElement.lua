@@ -195,6 +195,17 @@ end
 mod.tracked_units.init()
 mod.hud_dimensions.init()
 
+local show_breed = function(breed_name)
+	-- Checks the mod options currently stored, and returns whether the breed's widget should be displayed
+	if mod.tracked_units.overlay_breeds_inverted_table[breed_name] then
+		if mod.color.hud.monster_only_if_alive and Breeds[breed_name].tags and Breeds[breed_name].tags.monster then
+			return mod.tracked_units.unit_count[breed_name] ~= 0
+		else
+			return true
+		end
+	end
+	return false
+end
 
 ---------------------------------
 -- Creating the scenegraph object
@@ -555,7 +566,7 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 	end
 	--> Now we refresh the widgets themselves every update tick
 	for _, breed_name in pairs(mod.tracked_units.overlay_breeds_array) do
-		local active_units_number = mod.tracked_units.unit_count[breed_name]
+		local active_units_number = mod.tracked_units.unit_count[breed_name] or 0
 		local active_units_text = active_units_number and tostring(active_units_number) or "X"
 		local priority_level = mod.tracked_units.priority_levels[breed_name]
 		local color_non_zero_units = mod.color.hud.table[priority_level]
