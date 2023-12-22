@@ -316,8 +316,7 @@ end
 
 mod.tracked_units.record_unit_spawn = function(breed_name, unit)
     local tracked_notif = mod.tracked_units.notif_breeds_inverted_table[breed_name]
-    local overlay_setting = mod.tracked_units.overlay_breeds_inverted_table[breed_name]
-    local tracked_overlay = overlay_setting == "always" or overlay_setting == "only_if_active"
+    local tracked_overlay = mod.tracked_units.overlay_breeds_inverted_table[breed_name]
     if tracked_notif or tracked_overlay then
         table.insert(mod.tracked_units.units[breed_name], unit)
         mod.tracked_units.refresh_unit_count(breed_name)
