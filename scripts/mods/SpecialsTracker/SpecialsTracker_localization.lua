@@ -13,7 +13,7 @@ local clean_brd_name = function(breed_name)
     end
 end
 
-local interesting_breeds = {
+local trackable_breeds = {
     "chaos_beast_of_nurgle",
     "chaos_hound",
     "chaos_plague_ogryn",
@@ -26,10 +26,12 @@ local interesting_breeds = {
     "renegade_sniper",
 }
 
-local priority_lvls = {"1", "2", "3", "4"}
+local priority_lvls = {"0", "1", "2", "3"}
 local color_indices = table.clone(priority_lvls)
+table.insert(color_indices, "monsters")
 table.insert(color_indices, "spawn")
 table.insert(color_indices, "death")
+table.insert(color_indices, "hybrid")
 
 local col_locs = {
     _r = "R",
@@ -43,55 +45,116 @@ local loc = {
         en = "Specials Tracker",
     },
     mod_description = {
-        en = "Shows a notification when certain enemies spawn or die, as well as a counter of how many such units are currently alive.",
+        en = "Shows a notification when certain enemies spawn or die, as well as a counter of how many such units are currently alive",
     },
-    spawn_message = {
-        en = "%s spawned %s",
+    spawn_message_icon = {
+        en = "%s \u{2014} %s",
     },
-    death_message = {
-        en = "%s died %s",
+    death_message_icon = {
+        en = "%s \u{2014} %s",
     },
-    spawn_message_simple = {
+    spawn_message_simple_icon = {
+        en = "%s"
+    },
+    death_message_simple_icon = {
+        en = "%s",
+    },
+    spawn_message_text = {
+        en = "%s spawned - %s",
+    },
+    death_message_text = {
+        en = "%s died - %s",
+    },
+    spawn_message_simple_text = {
         en = "%s spawned",
     },
-    death_message_simple = {
+    death_message_simple_text = {
         en = "%s died",
+    },
+    hybrid_message_grouped = {
+        --en = "%s \u{2014} \u{2191} %s  \u{2193} %s",\u{00B7}
+        en = "%s \u{2014}\n %s \u{25B2} \u{2014} %s \u{25BC}",
+    },
+    hybrid_message_grouped_1_icon = {
+        en = "%s",
+    },
+    hybrid_message_grouped_2_icon = {
+        en = "%s \u{25B2} \u{2014} %s \u{25BC}",
+    },
+    hybrid_message_grouped_1_text = {
+        en = "%s",
+    },
+    hybrid_message_grouped_2_text = {
+        en = "Spawned %s - Died %s",
+    },
+    notif_display_type = {
+        en = "Notification style",
+    },
+    tooltip_notif_display_type = {
+        en = "\nAdd a marking to notifications to further separate spawn and death ones, on top of their background color\n\nIcon: Short text with an icon representing spawn or death\n\nText: Longer text with no icon",
+    },
+    notif_grouping = {
+        en = "Group spawn/death notifs. of a given enemy",
+    },
+    tooltip_notif_grouping = {
+        en = "\nIf a spawn and a death notification of the same enemy would appear simultaneously, collapse them into one hybrid notification instead",
+    },
+    icon = {
+        en = "Icon",
+    },
+    text = {
+        en = "Text",
+    },
+    notification_default_enter = {
+        en = "Default notification sound - Enter",
+    },
+    notification_default_exit = {
+        en = "Default notification sound - Exit",
+    },
+    mission_vote_popup_show_details = {
+        en = "Mission vote popup - Show details",
+    },
+    mission_vote_popup_hide_details = {
+        en = "Mission vote popup - Hide details",
     },
     hud_scale = {
         en = "Overlay scale",
     },
     font = {
-        en = "Font",
+        en = "Overlay font",
     },
     hud_color_lerp_ratio = {
         en = "Overlay text color intensity",
     },
     tooltip_hud_color_lerp_ratio = {
-        en = "\nHow strongly the color specific to an enemy's priority level is expressed in the overlay, 0 being not-at-all (white), and 1 being completely (the enemy's priority level's color).\n\nThis overlay-specific coloring can be disabled per priority level to simply have white instead.",
+        en = "\nHow strongly the color specific to an enemy's priority level is expressed in the overlay, 0 being not-at-all (white), and 1 being completely (the enemy's priority level's color)\n\nThis overlay-specific coloring can be disabled per priority level to simply have white instead",
     },
     monsters_hud_only_if_alive = {
         en = "Monsters in overlay only if active",
     },
     tooltip_monsters_hud_only_if_alive = {
-        en = "\nIf this is enabled, monster that are toggled on to be in the overlay will have their name and unit count only actually appear if at least one is alive.\n\nThis is *strongly* recommended in order to keep the overlay as compact as possible.",
+        en = "\nIf this is enabled, monster that are toggled on to be in the overlay will have their name and unit count only actually appear if at least one is alive\n\nThis is *strongly* recommended in order to keep the overlay as compact as possible",
     },
     color_spawn = {
-        en = "Enemy spawn notif. background color",
+        en = "Spawn notifications",
     },
     color_death = {
-        en = "Enemy death notif. background color",
+        en = "Death notifications",--notif. background color",
+    },
+    color_hybrid = {
+        en = "Hybrid (spawn + death) notif. color",
     },
     tooltip_color_alpha = {
-        en = "\nOpacity of the notification, 0 being fully transparent and 255 fully opaque.",
+        en = "\nOpacity of the notification, 0 being fully transparent and 255 fully opaque",
     },
     priority_lvls = {
-        en = "Enemy priority levels",
+        en = "Unit name colors by priority level",
     },
     breed_widgets = {
-        en = "Tracked units",
+        en = "Trackable units",
     },
     tooltip_priority_lvls = {
-        en = "\nEach tracked unit will be assigned a priority level, which determines its name color in notifications (and optionally the overlay), as well as how high it appears in the overlay.\n\n1 is the highest priority, 4 is the lowest.",
+        en = "\nEach tracked unit will be assigned a priority level, which determines its name color in notifications (and optionally the overlay), as well as how high it appears in the overlay\n\n1 is the highest priority, and 3 is the lowest, except for monsters which always have priority level of 0",
     },
     tooltip_overlay_tracking = {
         en = "\nAlways = Enemy type will always be shown in the overlay\n\nOnly when active = Enemy type will only appear in the overlay if one of more of those enemies are alive\n\nNever = Enemy type will never be shown in the overlay",
@@ -130,7 +193,7 @@ local loc = {
         ru = "Специалисты",
     },
     breed_monster = {
-        en = "Monstrosities",
+        en = "Monsters",
         ja = "バケモノ",
         ["zh-cn"] = "怪物",
         ru = "Монстры",
@@ -151,14 +214,36 @@ local loc = {
 
 for _, i in pairs(priority_lvls) do
     loc["color_"..i] = {
-        en = "Level "..i,
+        en = "Priority level "..i,
     }
     loc["color_used_in_hud_"..i] = {
         en = "Use color in overlay",
     }
 end
 
+loc["color_monsters"] = {
+    en = "Monsters (priority level 0)",
+}
+loc["color_used_in_hud_monsters"] = {
+    en = "Use color in overlay",
+}
+loc["monsters_pos"] = {
+    en = "Position in overlay",
+}
+loc["tooltip_monsters_pos"] = {
+    en = "\nWhether the monsters will be listed at the top or the bottom of the list in the overlay\n\nIt is recommended to list them at the bottom, so the rest of the units don't get pushed up or down when a monster spawns or die",
+}
+loc["top"] = {
+    en = "Top",
+}
+loc["bottom"] = {
+    en = "Bottom",
+}
+
 for _, i in pairs(color_indices) do
+    loc["sound_"..i] = {
+        en = "Sound",
+    }
     for col, col_loc in pairs(col_locs) do
         loc["color_"..i..col] = {
             en = col_loc,
@@ -166,7 +251,7 @@ for _, i in pairs(color_indices) do
     end
 end
 
-for _, breed_name in pairs(interesting_breeds) do
+for _, breed_name in pairs(trackable_breeds) do
     loc[breed_name.."_overlay"] = {
         en = "Show in overlay",
     }
@@ -221,7 +306,7 @@ end
 -- Shorter names for mod the options menu
 
 loc["monsters"] = {
-    en = "Monstrosities"
+    en = "Monsters"
 }
 loc["flamer"] = {
     en = "Flamers (Scab / Tox)"
@@ -262,6 +347,15 @@ loc["renegade_netgunner_notif_name"] = {
 }
 loc["renegade_sniper_notif_name"] = {
     en = "Sniper"
+}
+loc["chaos_beast_of_nurgle_notif_name"] = {
+    en = "BEAST OF NURGLE"
+}
+loc["chaos_plague_ogryn_notif_name"] = {
+    en = "PLAGUE OGRYN"
+}
+loc["chaos_spawn_notif_name"] = {
+    en = "CHAOS SPAWN"
 }
 
 --------------------------------
