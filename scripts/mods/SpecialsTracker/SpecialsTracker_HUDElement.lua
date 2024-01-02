@@ -12,25 +12,6 @@ local HudElementSpecialsTracker = class("HudElementSpecialsTracker", "HudElement
 local constants = mod.global_constants
 local settings = mod.settings
 
----------------------------
--- Various global constants
-
-
-	-- The font size at hud scale 1
-local overlay_breed_names = {}
-for _, breed_name in pairs(constants.trackable_breeds.array) do
-	table.insert(overlay_breed_names, mod:localize(breed_name.."_overlay_name"))
-end
-	-- An array containing the HUD names of all trackable units
-
-
------------------------------------------------
--- Fetching the current font whenever necessary
-
-settings.font.init = function(self)
-    self.current = mod:get("font") or "machine_medium"
-end
-settings.font:init()
 
 ------------------
 -- A few utilities
@@ -95,6 +76,18 @@ local pass_size = function(type)
 	end
 end
 
+local show_breed = function(breed_name)
+	-- Checks the mod options currently stored, and returns whether the breed's widget should be displayed
+	if mod.tracked_units.overlay_breeds.inv_table[breed_name] then
+		if mod.tracked_units.overlay_breeds.only_if_active[breed_name] then
+			return mod.tracked_units.unit_count[breed_name] ~= 0
+		else
+			return true
+		end
+	end
+	return false
+end
+
 
 --------------------------------------------------------
 -- Calculating various HUD dimensions whenever necessary
@@ -125,17 +118,22 @@ local max_number_size = function(scale)
 	return max_width, max_height
 end
 
+
+---------------------
+-- mod.hud_dimensions
+
 mod.hud_dimensions = {
 	nb_of_prty_lvls_used = #constants.priority_levels,
-	-- NB: The above field is *not* calculated during init(), but when the HUD element's position and scale are flagged for refreshing
+	-- NB: The above field is not calculated during -:init(), but when the HUD element's position and scale are flagged for refreshing, since the number of priority levels that are actually used is only calculated then
 }
+
 mod.hud_dimensions.init = function(self)
 	settings.font:init()
 	local scale = mod:get("hud_scale")
 	settings.hud_scale = scale
 	local max_text_width = 0
 	local max_text_height = 0
-	for _, name in pairs(overlay_breed_names) do
+	for _, name in pairs(constants.trackable_breeds.overlay_names) do
 		local this_width, this_height = mod.get_text_size(name, scale)
 		max_text_width = math.max(max_text_width, this_width)
 		max_text_height = math.max(max_text_height, this_height)
@@ -165,18 +163,6 @@ end
 mod.tracked_units:init()
 mod.hud_dimensions:init()
 
-local show_breed = function(breed_name)
-	-- Checks the mod options currently stored, and returns whether the breed's widget should be displayed
-	if mod.tracked_units.overlay_breeds.inv_table[breed_name] then
-		if mod.tracked_units.overlay_breeds.only_if_active[breed_name] then
-			return mod.tracked_units.unit_count[breed_name] ~= 0
-		else
-			return true
-		end
-	end
-	return false
-end
-
 
 ---------------------------------
 -- Creating the scenegraph object
@@ -203,9 +189,8 @@ local scenegraph_definition = {
 
 local breed_widget_z_offset = 10
 local breed_widget = function(breed_name)
-	-- Argument: A (cleaned) breed_name
-	-- Returns: A widget built from the two passes of breed_name
-	-- NB: Its position and visibility will be upgraded as is needed in the init and update methods of the UI element
+	-- Takes a (clean) breed name, and returns its widget, built from the two passes for breed_name
+	-- NB: Its position will be updated as is needed in the init and update methods of the UI element
 	local breed_passes =
 		{
 			{
@@ -522,8 +507,8 @@ end
 widget_definitions["widget_background"] = background_widget
 
 
---------------------------------------
--- Initialising the HUD element itself
+----------------------------------
+-- Defining the HUD element itself
 
 HudElementSpecialsTracker.init = function(self, parent, draw_layer, start_scale)
 	for element,_ in pairs(mod.hud_refresh_flags) do

@@ -142,7 +142,7 @@ local loc = {
         en = "Death notifications",--notif. background color",
     },
     color_hybrid = {
-        en = "Hybrid (spawn + death) notif. color",
+        en = "Hybrid (spawn + death) notifications",
     },
     tooltip_color_alpha = {
         en = "\nOpacity of the notification, 0 being fully transparent and 255 fully opaque",

@@ -9,51 +9,6 @@ local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
---                         Global utilities
----------------------------------------------------------------------------
----------------------------------------------------------------------------
-
-mod.utilities = {
-    get_breed_setting = nil,
-    sort_breed_names = nil,
-    clean_breed_name = nil,
-    is_monster = nil,
-}
-
-local util = mod.utilities
-
-util.clean_breed_name = function(breed_name)
-    local breed_name_no_mutator_marker = string.match(breed_name, "(.+)_mutator$") or breed_name
-    if string.match(breed_name_no_mutator_marker, "(.+)_flamer") then
-        return "flamer"
-    else
-        return breed_name_no_mutator_marker
-    end
-end
-
-util.is_monster = function(clean_brd_name)
-    -- NB: We check if Breeds[clean_brd_name] exists in case the *clean* breed name is, for instance "flamer" which isn't a valid breed
-    if Breeds[clean_brd_name] and Breeds[clean_brd_name].tags and Breeds[clean_brd_name].tags.monster then
-        return true
-    else
-        return false
-    end
-end
-
-local monster_then_alphabetical_order = function(a,b)
-    -- List monsters at the end, then breeds alphabetically
-    if util.is_monster(a) and not util.is_monster(b) then
-        return(false)
-    elseif util.is_monster(b) and not util.is_monster(a) then
-        return(true)
-    else
-        return(mod:localize(a) < mod:localize(b))
-    end
-end
-
-
----------------------------------------------------------------------------
----------------------------------------------------------------------------
 --                         Global constants
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -63,8 +18,14 @@ mod.global_constants = {
     events_extended = {"spawn", "death", "hybrid"},
     priority_levels = {"0", "1", "2", "3"},
     priority_levels_non_zero = {"1", "2", "3"},
-    trackable_breeds = { },
+    trackable_breeds = {
+        array = { },
+        inv_table = { },
+        overlay_names = { },
+        sort = nil,
+    },
     hud = {
+        min_possible_scale = 0.5,
         max_possible_scale = 2,
         base_font_size = 25,
         x_padding_ratio = 0.07,
@@ -86,16 +47,68 @@ mod.global_constants = {
 }
 local constants = mod.global_constants
 
---[[
-constants.indices = {}
-for _, event in pairs(mod.events) do
-    table.insert(constants.color.indices, event)
-end
-for _, lvl in pairs(mod.priority_levels) do
-    table.insert(constants.color.indices, tostring(lvl))
-end
---]]
 
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                         Global utilities
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+mod.utilities = {
+    get_breed_setting = nil,
+    sort_breed_names = nil,
+    clean_breed_name = nil,
+    is_monster = nil,
+    notif_clearing = {
+        clear = nil,
+        cutscene_loaded = false,
+        cutscene_loaded_by_name = {
+            outro_win = false,
+            outro_fail = false,
+        },
+        scoreboard_loaded = false,
+        init = function(self)
+            self.cutscene_loaded = false
+            self.cutscene_loaded_by_name = {
+                outro_win = false,
+                outro_fail = false,
+            }
+            self.scoreboard_loaded = false
+            --mod:echo("cutscene_loaded and scoreboard_loaded set to false")
+        end,
+    }
+}
+local util = mod.utilities
+
+
+util.clean_breed_name = function(breed_name)
+    local breed_name_no_mutator_marker = string.match(breed_name, "(.+)_mutator$") or breed_name
+    if string.match(breed_name_no_mutator_marker, "(.+)_flamer") then
+        return "flamer"
+    else
+        return breed_name_no_mutator_marker
+    end
+end
+
+util.is_monster = function(clean_brd_name)
+    -- NB: We check if Breeds[clean_brd_name] exists in case the *clean* breed name is, for instance "flamer" which isn't a valid breed
+    if Breeds[clean_brd_name] and Breeds[clean_brd_name].tags and Breeds[clean_brd_name].tags.monster then
+        return true
+    else
+        return false
+    end
+end
+
+util.monster_then_alphabetical_order = function(a,b)
+    -- List monsters at the end, then breeds alphabetically
+    if util.is_monster(a) and not util.is_monster(b) then
+        return(false)
+    elseif util.is_monster(b) and not util.is_monster(a) then
+        return(true)
+    else
+        return(mod:localize(a) < mod:localize(b))
+    end
+end
 
 
 ---------------------------------------------------------------------------
@@ -108,14 +121,35 @@ mod.settings = {
     hud_scale = 1,
     font = {
         current = "machine_medium",
-        init = nil,
+        init = function(self)
+            self.current = mod:get("font") or self.current
+        end
     },
     notif = {
         display_type = "icon",
         grouping = true,
+        sound = {
+            enter_spawn = nil,
+            exit_spawn = nil,
+            enter_death = nil,
+            exit_death = nil,
+            enter_spawn_default = nil,
+            exit_spawn_default = nil,
+            enter_death_default = nil,
+            exit_death_default = nil,
+        },
         init = function(self)
             self.display_type = mod:get("notif_display_type")
             self.grouping = mod:get("notif_grouping")
+            for _, event in pairs(constants.events) do
+                for _, notif_evt in pairs({"enter", "exit"}) do
+                    local default_sound_name = "notification_default_"..notif_evt
+                    self.sound[notif_evt.."_"..event.."_default"] = UISoundEvents[default_sound_name]
+                end
+                self.sound["enter_"..event] = mod:get("sound_"..event)
+                self.sound["exit_"..event] = self.sound["exit_"..event.."_default"]
+                
+            end
         end,
     },
     color = {
@@ -132,6 +166,9 @@ mod.settings = {
 }
 local settings = mod.settings
 
+-------------------------------------------------------
+--                     color
+-------------------------------------------------------
 
 settings.color.notif.text_gradient = function(t, base_color)
     -- Argument: time since notif was last updated
@@ -163,11 +200,11 @@ end
 
 
 -------------------------------------------------------
---             interesting_breed_names
+--                trackable_breeds
 -------------------------------------------------------
 
 -- NB: A "clean breed name" is a breed_name cleaned by util.clean_breed_name, which removed the possible "_mutator" marker at the end of the breed name, *and* collapses "renegade_flamer" and "cultist_flamer" into the same clean_breed_name "flamer" in order to track them together. Unless specified otherwise, "breed_name"'s are assumed to have been "cleaned". The names used here are the cleaned names of currently trackable units.
--- constants.trackable_breeds.array is the *sorted array* of the *cleaned* breed_name's *trackable* (not tracked!) by the mod.
+-- constants.trackable_breeds.array is the *sorted array* of the *cleaned* breed_name's trackable by the mod.
     -- NB: The order used for this file, and thus the mod options, only involves the monster tag, and alphabetical ordering, since we don't yet have access to the mod options. Additional layers of ordering will be added in the main file, for the HUD element widgets.
 -- constants.trackable_breeds.inv_table[breed_name] = true if breed_name is in constants.trackable_breeds.array, nil otherwise
 -- constants.trackable_breeds.sort() is defined in the main file
@@ -186,17 +223,22 @@ constants.trackable_breeds.array = {
 }
 constants.trackable_breeds.inv_table = {}
 
-table.sort(constants.trackable_breeds.array, monster_then_alphabetical_order)
+table.sort(constants.trackable_breeds.array, util.monster_then_alphabetical_order)
 for _, clean_brd_name in pairs(constants.trackable_breeds.array) do
     constants.trackable_breeds.inv_table[clean_brd_name] = true
+    table.insert(constants.trackable_breeds.overlay_names, mod:localize(clean_brd_name.."_overlay_name"))
 end
 
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
---                      Utilities definitions
+--                    Local utilities definitions
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
+
+-------------------------------------------------------
+--                     Font
+-------------------------------------------------------
 
 local font_options = {}
 for font_name, _ in pairs(FontDefinitions.fonts) do
@@ -231,52 +273,9 @@ local wanted_default =  {
 local default_font = contains_font(font_options, wanted_default) and wanted_default.value or font_options[1].value
 
 
-local position_dropdown = { }
-for _, i in pairs({
-    "top",
-    "bottom"
-}) do
-    table.insert(position_dropdown, {text = i, value = i})
-end
-
-
-local notif_display_dropdown = { }
-for _, i in pairs({
-    "icon",
-    "text",
-}) do
-    table.insert(notif_display_dropdown, {text = i, value = i})
-end
-
-
-local overlay_tracking_dropdown = { }
-for _, i in pairs({
-    "always",
-    "only_if_active",
-    "off"
-}) do
-    table.insert(overlay_tracking_dropdown, {text = i, value = i})
-end
-
-local default_overlay_tracking = function(clean_brd_name)
-    if clean_brd_name == "monsters" then
-        return "only_if_active"
-    elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" then
-        return "always"
-    else
-        return "off"
-    end
-end
-
---[[
-local color_options = {}
-for _, color in ipairs(Color.list) do
-	table.insert(color_options, {
-		text = color,
-		value = color,
-	})
-end
---]]
+-------------------------------------------------------
+--                   Sounds
+-------------------------------------------------------
 
 local create_sound_entry = function(sound_name)
     return table.clone({
@@ -315,6 +314,64 @@ for _, i in pairs(other_sound_events) do
     table.insert(sound_events, i)
 end
 
+
+-------------------------------------------------------
+--             Other dropdown tables
+-------------------------------------------------------
+
+local position_dropdown = { }
+for _, i in pairs({
+    "top",
+    "bottom"
+}) do
+    table.insert(position_dropdown, {text = i, value = i})
+end
+
+
+local notif_display_dropdown = { }
+for _, i in pairs({
+    "icon",
+    "text",
+}) do
+    table.insert(notif_display_dropdown, {text = i, value = i})
+end
+
+
+local overlay_tracking_dropdown = { }
+for _, i in pairs({
+    "always",
+    "only_if_active",
+    "off"
+}) do
+    table.insert(overlay_tracking_dropdown, {text = i, value = i})
+end
+
+
+-------------------------------------------------------
+--                Default values
+-------------------------------------------------------
+
+local default_overlay_tracking = function(clean_brd_name)
+    if clean_brd_name == "monsters" then
+        return "only_if_active"
+    elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" then
+        return "always"
+    else
+        return "off"
+    end
+end
+
+local default_priority_level = function(clean_brd_name)
+    -- This will be the value of the priority_lvl setting, and not an index, so it needs to be an integer
+    -- It will be tostring'd when fetched by the mod (Lua can compare tostring'd digits as part of the default alphabetical order)
+    if clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" then
+        return 1
+    elseif clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" then
+        return 2
+    else
+        return 3
+    end
+end
 
 local default_colors = function(extended_evt_or_priority_lvl)
     if extended_evt_or_priority_lvl == "spawn" then
@@ -371,6 +428,7 @@ local default_colors = function(extended_evt_or_priority_lvl)
     end
 end
 
+
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 --                     Widget creation functions
@@ -378,11 +436,10 @@ end
 ---------------------------------------------------------------------------
 
 local color_widget = function(extended_evt_or_priority_lvl, alpha_wanted)
-    -- NB: extended_evt_or_priority_lvl can be an extendede event ("spawn"/"death"/"hybrid"), a priority level, or "monsters" (which, conceptually, corresponds to priority level 0)
+    -- extended_evt_or_priority_lvl can be an extended event ("spawn"/"death"/"hybrid"), a non-zero priority level, or "monsters" (which, conceptually, corresponds to priority level 0)
     local res = {
         setting_id = "color_"..extended_evt_or_priority_lvl,
         type = "group",
-        --tooltip = "tooltip_color_"..extended_evt_or_priority_lvl,
         sub_widgets = { }
     }
     if extended_evt_or_priority_lvl == "monsters" or table.array_contains(constants.priority_levels_non_zero, extended_evt_or_priority_lvl) then
@@ -393,11 +450,7 @@ local color_widget = function(extended_evt_or_priority_lvl, alpha_wanted)
             default_value = true,
             })
     elseif extended_evt_or_priority_lvl ~= "hybrid" then
-        -- If it's an event, add a sound cue widget
-        --local default_sound = extended_evt_or_priority_lvl == "spawn" and UISoundEvents.notification_default_enter or UISoundEvents.notification_default_exit
-        --local default_sound = extended_evt_or_priority_lvl == "spawn"
-        --and "wwise/events/ui/play_ui_show_details"
-        --or "wwise/events/ui/play_ui_hide_details"
+        -- If it's a base event, add a sound cue widget
         local default_sound = extended_evt_or_priority_lvl == "spawn"
         and UISoundEvents.notification_default_enter
         or UISoundEvents.notification_default_enter
@@ -428,17 +481,6 @@ local color_widget = function(extended_evt_or_priority_lvl, alpha_wanted)
     return(res)
 end
 
-local default_priority_level = function(clean_brd_name)
-    -- This will be the value of the priority_lvl setting, and not an index, so it needs to be an integer
-    -- It will be tostring'd when fetched by the mod (Lua can compare tostring'd digits as part of the default alphabetical order)
-    if clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" then
-        return 1
-    elseif clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" then
-        return 2
-    else
-        return 3
-    end
-end
 
 local breed_widget = function(clean_brd_name)
     local widget = {
@@ -476,13 +518,12 @@ local breed_widget = function(clean_brd_name)
         default_value = "bottom",
         options = table.clone(position_dropdown),
     }
-    widget.sub_widgets = {
-        sub_wid_toggle_overlay,
-        sub_wid_toggle_notif,
-    }
     if clean_brd_name ~= "monsters" then
         table.insert(widget.sub_widgets, sub_wid_priority_lvl)
-    else
+    end
+    table.insert(widget.sub_widgets, sub_wid_toggle_overlay)
+    table.insert(widget.sub_widgets, sub_wid_toggle_notif)
+    if clean_brd_name == "monsters" then
         table.insert(widget.sub_widgets, sub_wid_monsters_pos)
     end
     return widget
@@ -491,7 +532,7 @@ end
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
---                      Widgets initialisation
+--                        Widgets creation
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
@@ -499,7 +540,7 @@ local widgets = {
     {
         setting_id = "hud_scale",
         type = "numeric",
-        range = { 0.5, 2 },
+        range = { constants.hud.min_possible_scale, constants.hud.max_possible_scale },
         default_value = 1,
         decimals_number = 1,
         step_size_value = 0.1,
@@ -521,7 +562,6 @@ local widgets = {
     },
     {
         setting_id = "notif_display_type",
-        -- tooltip = "tooltip_notif_display_type",
         type = "dropdown",
         default_value = "icon",
         options = table.clone(notif_display_dropdown),
@@ -534,7 +574,7 @@ local widgets = {
     },
 }
 
--- Add event notif. widgets
+-- Add extended event notif. widgets
 for _, event in pairs(constants.events_extended) do
     table.insert(widgets, color_widget(event, true))
 end
@@ -564,19 +604,6 @@ for _, clean_brd_name in pairs(constants.trackable_breeds.array) do
         table.insert(widgets[#widgets].sub_widgets, breed_widget(clean_brd_name))
     end
 end
-
-
---[[
--- Add manual refresh key widget
-table.insert(widgets, {
-    setting_id = "unit_counter_reset_key",
-    type = "keybind",
-    default_value = { "f6" },
-    keybind_trigger = "pressed",
-    keybind_type = "function_call",
-    function_name = "reset_unit_counter",
-})
---]]
 
 
 return {
