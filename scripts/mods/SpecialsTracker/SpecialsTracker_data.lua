@@ -285,10 +285,10 @@ local create_sound_entry = function(sound_name)
 end
 
 local sound_events = {
-    create_sound_entry("notification_default_enter"),
-    create_sound_entry("notification_default_exit"),
     create_sound_entry("mission_vote_popup_show_details"),
     create_sound_entry("mission_vote_popup_hide_details"),
+    create_sound_entry("notification_default_enter"),
+    create_sound_entry("notification_default_exit"),
 }
 
 local other_sound_events = { }
@@ -373,6 +373,14 @@ local default_priority_level = function(clean_brd_name)
     end
 end
 
+local default_sound = function(extended_evt)
+    if extended_evt == "spawn" then
+        return sound_events[1].value
+    else
+        return sound_events[2].value
+    end
+end
+
 local default_colors = function(extended_evt_or_priority_lvl)
     if extended_evt_or_priority_lvl == "spawn" then
         return({
@@ -451,13 +459,10 @@ local color_widget = function(extended_evt_or_priority_lvl, alpha_wanted)
             })
     elseif extended_evt_or_priority_lvl ~= "hybrid" then
         -- If it's a base event, add a sound cue widget
-        local default_sound = extended_evt_or_priority_lvl == "spawn"
-        and UISoundEvents.notification_default_enter
-        or UISoundEvents.notification_default_enter
         table.insert(res.sub_widgets, {
                 setting_id = "sound_"..extended_evt_or_priority_lvl,
                 type = "dropdown",
-                default_value = default_sound,
+                default_value = default_sound(extended_evt_or_priority_lvl),
                 options = table.clone(sound_events)
             })
     end
@@ -575,15 +580,21 @@ local widgets = {
 }
 
 -- Add extended event notif. widgets
+table.insert(widgets, {
+    setting_id = "extended_events",
+    type = "group",
+    --tooltip = "tooltip_extended_events",
+    sub_widgets = { }
+})
 for _, event in pairs(constants.events_extended) do
-    table.insert(widgets, color_widget(event, true))
+    table.insert(widgets[#widgets].sub_widgets, color_widget(event, true))
 end
 
 -- Add priority level (and monsters) widgets
 table.insert(widgets, {
     setting_id = "priority_lvls",
     type = "group",
-    tooltip = "tooltip_priority_lvls",
+    --tooltip = "tooltip_priority_lvls",
     sub_widgets = { }
 })
 table.insert(widgets[#widgets].sub_widgets, color_widget("monsters", false))

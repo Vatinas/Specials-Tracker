@@ -124,7 +124,7 @@ local loc = {
         en = "Overlay font",
     },
     hud_color_lerp_ratio = {
-        en = "Overlay text color intensity",
+        en = "Overlay names color intensity",
     },
     tooltip_hud_color_lerp_ratio = {
         en = "\nHow strongly the color specific to an enemy's priority level is expressed in the overlay, 0 being not-at-all (white), and 1 being completely (the enemy's priority level's color)\n\nThis overlay-specific coloring can be disabled per priority level to simply have white instead",
@@ -139,7 +139,7 @@ local loc = {
         en = "Spawn notifications",
     },
     color_death = {
-        en = "Death notifications",--notif. background color",
+        en = "Death notifications",
     },
     color_hybrid = {
         en = "Hybrid (spawn + death) notifications",
@@ -147,11 +147,14 @@ local loc = {
     tooltip_color_alpha = {
         en = "\nOpacity of the notification, 0 being fully transparent and 255 fully opaque",
     },
+    extended_events = {
+        en = "> Notification sound & background color",
+    },
     priority_lvls = {
-        en = "Unit name colors by priority level",
+        en = "> Unit name colors by priority level",
     },
     breed_widgets = {
-        en = "Trackable units",
+        en = "> Trackable units",
     },
     tooltip_priority_lvls = {
         en = "\nEach tracked unit will be assigned a priority level, which determines its name color in notifications (and optionally the overlay), as well as how high it appears in the overlay\n\n1 is the highest priority, and 3 is the lowest, except for monsters which always have priority level of 0",
