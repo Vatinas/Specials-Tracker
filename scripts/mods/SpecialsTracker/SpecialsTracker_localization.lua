@@ -2,7 +2,11 @@ local mod = get_mod("SpecialsTracker")
 local Breeds = require("scripts/settings/breed/breeds")
 
 
--- We need the following variables, but since they won't have been defined yet when this file is run, we'll use a makeshift version of them
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                        Local utilities
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 local clean_brd_name = function(breed_name)
     local breed_name_no_mutator_marker = string.match(breed_name, "(.+)_mutator$") or breed_name
@@ -13,23 +17,23 @@ local clean_brd_name = function(breed_name)
     end
 end
 
-local interesting_breeds = {
-    "chaos_beast_of_nurgle",
+local trackable_breeds = {
     "chaos_hound",
-    "chaos_plague_ogryn",
     "chaos_poxwalker_bomber",
-    "chaos_spawn",
     "cultist_mutant",
     "flamer",
     "renegade_grenadier",
     "renegade_netgunner",
     "renegade_sniper",
+    "monsters",
 }
 
-local priority_lvls = {"1", "2", "3", "4"}
+local priority_lvls = {"0", "1", "2", "3", "monsters"}
+-- NB: We shouldn't need 0 for localisation purposes, but as long as it doesn't add that much unnecessary data, better safe than sorry
 local color_indices = table.clone(priority_lvls)
 table.insert(color_indices, "spawn")
 table.insert(color_indices, "death")
+table.insert(color_indices, "hybrid")
 
 local col_locs = {
     _r = "R",
@@ -38,63 +42,172 @@ local col_locs = {
     _alpha = "Alpha",
 }
 
-local loc = {
-    mod_name = {
-        en = "Specials Tracker",
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--              Generic raw localisation entries per type
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+local loc_raw = { }
+
+
+-------------------------------------------------------
+--                    category
+-------------------------------------------------------
+
+loc_raw.category = {
+    extended_events = {
+        en = "Notification sound & background color",
     },
-    mod_description = {
-        en = "Shows a notification when certain enemies spawn or die, as well as a counter of how many such units are currently alive.",
+    priority_lvls = {
+        en = "Unit name colors by priority level",
     },
-    spawn_message = {
-        en = "%s spawned %s",
+    breed_widgets = {
+        en = "Trackable units",
     },
-    death_message = {
-        en = "%s died %s",
+}
+
+
+-------------------------------------------------------
+--                     subcategory
+-------------------------------------------------------
+
+loc_raw.subcategory = {
+    color_spawn = {
+        en = "Spawn notifications",
     },
-    spawn_message_simple = {
-        en = "%s spawned",
+    color_death = {
+        en = "Death notifications",
     },
-    death_message_simple = {
-        en = "%s died",
+    color_hybrid = {
+        en = "Hybrid (spawn + death) notifications",
+    },
+}
+
+for _, i in pairs(priority_lvls) do
+    loc_raw.subcategory["color_"..i] = {
+        en = "Priority level "..i,
+    }
+end
+
+loc_raw.subcategory["color_monsters"] = {
+    en = "Monsters (priority level 0)",
+}
+
+
+-------------------------------------------------------
+--                     setting
+-------------------------------------------------------
+
+loc_raw.setting = {
+    notif_display_type = {
+        en = "Notification style",
+    },
+    notif_grouping = {
+        en = "Group spawn/death notifs. of a given enemy",
     },
     hud_scale = {
         en = "Overlay scale",
     },
     font = {
-        en = "Font",
+        en = "Overlay font",
     },
     hud_color_lerp_ratio = {
-        en = "Overlay text color intensity",
+        en = "Overlay names color intensity",
+    },
+}
+
+for _, i in pairs(priority_lvls) do
+    loc_raw.setting["color_used_in_hud_"..i] = {
+        en = "Use color in overlay",
+    }
+end
+
+loc_raw.setting["monsters_pos"] = {
+    en = "Position in overlay",
+}
+
+for _, i in pairs(color_indices) do
+    loc_raw.setting["sound_"..i] = {
+        en = "Sound",
+    }
+end
+
+for _, breed_name in pairs(trackable_breeds) do
+    loc_raw.setting[breed_name.."_overlay"] = {
+        en = "Show in overlay",
+    }
+    loc_raw.setting[breed_name.."_notif"] = {
+        en = "Notifications",
+    }
+    loc_raw.setting[breed_name.."_priority"] = {
+        en = "Priority level",
+    }
+end
+
+for _, i in pairs(color_indices) do
+    for col, col_loc in pairs(col_locs) do
+        loc_raw.setting["color_"..i..col] = {
+            en = col_loc,
+        }
+    end
+end
+
+
+-------------------------------------------------------
+--                     tooltip
+-------------------------------------------------------
+
+loc_raw.tooltip = {
+    tooltip_notif_grouping = {
+        en = "\nIf a spawn and a death notification of the same enemy would appear simultaneously, collapse them into one hybrid notification instead",
+    },
+    tooltip_notif_display_type = {
+        en = "\nAdd a marking to notifications to further separate spawn and death ones, on top of their background color\n\nIcon: Short text with an icon representing spawn or death\n\nText: Longer text with no icon",
     },
     tooltip_hud_color_lerp_ratio = {
-        en = "\nHow strongly the color specific to an enemy's priority level is expressed in the overlay, 0 being not-at-all (white), and 1 being completely (the enemy's priority level's color).\n\nThis overlay-specific coloring can be disabled per priority level to simply have white instead.",
-    },
-    monsters_hud_only_if_alive = {
-        en = "Monsters in overlay only if active",
+        en = "\nHow strongly the color specific to an enemy's priority level is expressed in the overlay, 0 being not-at-all (white), and 1 being completely (the enemy's priority level's color)\n\nThis overlay-specific coloring can be disabled per priority level to simply have white instead",
     },
     tooltip_monsters_hud_only_if_alive = {
-        en = "\nIf this is enabled, monster that are toggled on to be in the overlay will have their name and unit count only actually appear if at least one is alive.\n\nThis is *strongly* recommended in order to keep the overlay as compact as possible.",
-    },
-    color_spawn = {
-        en = "Enemy spawn notif. background color",
-    },
-    color_death = {
-        en = "Enemy death notif. background color",
+        en = "\nIf this is enabled, monster that are toggled on to be in the overlay will have their name and unit count only actually appear if at least one is alive\n\nThis is *strongly* recommended in order to keep the overlay as compact as possible",
     },
     tooltip_color_alpha = {
-        en = "\nOpacity of the notification, 0 being fully transparent and 255 fully opaque.",
-    },
-    priority_lvls = {
-        en = "Enemy priority levels",
-    },
-    breed_widgets = {
-        en = "Tracked units",
+        en = "\nOpacity of the notification, 0 being fully transparent and 255 fully opaque",
     },
     tooltip_priority_lvls = {
-        en = "\nEach tracked unit will be assigned a priority level, which determines its name color in notifications (and optionally the overlay), as well as how high it appears in the overlay.\n\n1 is the highest priority, 4 is the lowest.",
+        en = "\nEach tracked unit will be assigned a priority level, which determines its name color in notifications (and optionally the overlay), as well as how high it appears in the overlay\n\n1 is the highest priority, and 3 is the lowest, except for monsters which always have priority level of 0",
     },
     tooltip_overlay_tracking = {
         en = "\nAlways = Enemy type will always be shown in the overlay\n\nOnly when active = Enemy type will only appear in the overlay if one of more of those enemies are alive\n\nNever = Enemy type will never be shown in the overlay",
+    },
+    tooltip_monsters_pos = {
+        en = "\nWhether the monsters will be listed at the top or the bottom of the list in the overlay\n\nIt is recommended to list them at the bottom, so the rest of the units don't get pushed up or down when a monster spawns or die",
+    }
+}
+
+
+-------------------------------------------------------
+--                     option
+-------------------------------------------------------
+
+loc_raw.option = {
+    icon = {
+        en = "Icon",
+    },
+    text = {
+        en = "Text",
+    },
+    notification_default_enter = {
+        en = "Default notification sound - Enter",
+    },
+    notification_default_exit = {
+        en = "Default notification sound - Exit",
+    },
+    mission_vote_popup_show_details = {
+        en = "Mission vote popup - Show details",
+    },
+    mission_vote_popup_hide_details = {
+        en = "Mission vote popup - Hide details",
     },
     arial = {
         en = "Arial",
@@ -123,180 +236,275 @@ local loc = {
     machine_medium = {
         en = "Machine Medium",
     },
-    breed_specialist = {
-        en = "Specialists",
-        ja = "スペシャリスト",
-        ["zh-cn"] = "专家",
-        ru = "Специалисты",
+    top = {
+        en = "Top",
     },
-    breed_monster = {
-        en = "Monstrosities",
-        ja = "バケモノ",
-        ["zh-cn"] = "怪物",
-        ru = "Монстры",
+    bottom = {
+        en = "Bottom",
     },
-    debug = {
-        en = "Debug",
-        ja = "デバッグ",
-        ["zh-cn"] = "调试",
-        ru = "Отладка",
+    always = {
+        en = "Always",
     },
-    enable_debug_mode = {
-        en = "Enable Debug Mode",
-        ja = "デバッグモードを有効にする",
-        ["zh-cn"] = "启用调试模式",
-        ru = "Включить режим отладки",
-    }
+    only_if_active = {
+        en = "Only when active",
+    },
+    off = {
+        en = "Never",
+    },
 }
 
-for _, i in pairs(priority_lvls) do
-    loc["color_"..i] = {
-        en = "Level "..i,
-    }
-    loc["color_used_in_hud_"..i] = {
-        en = "Use color in overlay",
-    }
-end
 
-for _, i in pairs(color_indices) do
-    for col, col_loc in pairs(col_locs) do
-        loc["color_"..i..col] = {
-            en = col_loc,
-        }
-    end
-end
+-------------------------------------------------------
+--                     mod_ui
+-------------------------------------------------------
 
-for _, breed_name in pairs(interesting_breeds) do
-    loc[breed_name.."_overlay"] = {
-        en = "Show in overlay",
-    }
-    loc[breed_name.."_notif"] = {
-        en = "Notifications",
-    }
-    loc[breed_name.."_priority"] = {
-        en = "Priority level",
-    }
-end
-
-loc["monsters_overlay"] = {
-    en = "Show in overlay",
-}
-loc["monsters_notif"] = {
-    en = "Notifications",
-}
-loc["monsters_priority"] = {
-    en = "Priority level",
-}
-
-loc["always"] = {
-    en = "Always",
-}
-loc["only_if_active"] = {
-    en = "Only when active",
-}
-loc["off"] = {
-    en = "Never",
+loc_raw.mod_ui = {
+    spawn_message_icon = {
+        en = "%s \u{2014} %s",
+    },
+    death_message_icon = {
+        en = "%s \u{2014} %s",
+    },
+    spawn_message_simple_icon = {
+        en = "%s"
+    },
+    death_message_simple_icon = {
+        en = "%s",
+    },
+    spawn_message_text = {
+        en = "%s spawned - %s",
+    },
+    death_message_text = {
+        en = "%s died - %s",
+    },
+    spawn_message_simple_text = {
+        en = "%s spawned",
+    },
+    death_message_simple_text = {
+        en = "%s died",
+    },
+    hybrid_message_grouped = {
+        en = "%s \u{2014}\n %s \u{25B2} \u{2014} %s \u{25BC}",
+    },
+    hybrid_message_grouped_1_icon = {
+        en = "%s",
+    },
+    hybrid_message_grouped_2_icon = {
+        en = "%s \u{25B2} \u{2014} %s \u{25BC}",
+    },
+    hybrid_message_grouped_1_text = {
+        en = "%s",
+    },
+    hybrid_message_grouped_2_text = {
+        en = "Spawned %s - Died %s",
+    },
 }
 
--- Add localisation for all breeds and all loc. types in case the next part misses some breeds / some languages
+-------------------------------------------------------
+--                      misc
+-------------------------------------------------------
+
+loc_raw.misc = {
+    mod_name = {
+        en = "Specials Tracker",
+    },
+    mod_description = {
+        en = "Shows a notification when certain enemies spawn or die, as well as a counter of how many such units are currently alive",
+    },
+}
+
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--              Breed-specific raw localisation entries
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+
+-- Add localisations for all breeds and all loc. types in case the next part misses some breeds / some languages
 for breed_name, breed in pairs(Breeds) do
     if breed_name ~= "human" and breed_name ~= "ogryn" and breed.display_name then
         local clean_name = clean_brd_name(breed_name)
         -- Mod options menu names
-        loc[clean_name] = {
+        loc_raw.subcategory[clean_name] = {
             en = Localize(breed.display_name),
         }
         -- Breed names in notifs
-        loc[clean_name.."_notif_name"] = {
+        loc_raw.mod_ui[clean_name.."_notif_name"] = {
             en = Localize(breed.display_name),
         }
         -- Breed names in overlay
-        loc[clean_name.."_overlay_name"] = {
+        loc_raw.mod_ui[clean_name.."_overlay_name"] = {
             en = "[X]",
         }
     end
 end
 
------------------------------------------
--- Shorter names for mod the options menu
 
-loc["monsters"] = {
-    en = "Monstrosities"
-}
-loc["flamer"] = {
+----------
+-- Flamers
+
+loc_raw.subcategory["flamer"] = {
     en = "Flamers (Scab / Tox)"
 }
-loc["cultist_mutant"] = { 
-    en = "Mutant" -- The mutant isn't needed, but leaving it here for the sake of completeness
-}
-loc["chaos_hound"] = {
-    en = "Hound"
-}
-loc["renegade_grenadier"] = {
-    en = "Bomber"
-}
-loc["renegade_netgunner"] = {
-    en = "Trapper"
-}
-loc["renegade_sniper"] = {
-    en = "Sniper"
-}
-
----------------------------
--- Shorter names for notifs
-
-loc["flamer_notif_name"] = {
+loc_raw.mod_ui["flamer_notif_name"] = {
     en = "Flamer"
 }
-loc["cultist_mutant_notif_name"] = {
-    en = "Mutant"
-}
-loc["chaos_hound_notif_name"] = {
-    en = "Hound"
-}
-loc["renegade_grenadier_notif_name"] = {
-    en = "Bomber"
-}
-loc["renegade_netgunner_notif_name"] = {
-    en = "Trapper"
-}
-loc["renegade_sniper_notif_name"] = {
-    en = "Sniper"
-}
-
---------------------------------
--- Shorter names for the overlay
-
-loc["chaos_hound_overlay_name"] = {
-    en = "HND"
-}
-loc["flamer_overlay_name"] = {
+loc_raw.mod_ui["flamer_overlay_name"] = {
     en = "FLM"
 }
-loc["cultist_mutant_overlay_name"] = {
+
+---------
+-- Mutant
+
+loc_raw.subcategory["cultist_mutant"] = {
+    en = "Mutant"
+}
+loc_raw.mod_ui["cultist_mutant_notif_name"] = {
+    en = "Mutant"
+}
+loc_raw.mod_ui["cultist_mutant_overlay_name"] = {
     en = "MTNT"
 }
-loc["renegade_grenadier_overlay_name"] = {
+
+--------
+-- Hound
+
+loc_raw.subcategory["chaos_hound"] = {
+    en = "Hound"
+}
+loc_raw.mod_ui["chaos_hound_notif_name"] = {
+    en = "Hound"
+}
+loc_raw.mod_ui["chaos_hound_overlay_name"] = {
+    en = "HND"
+}
+
+---------
+-- Bomber
+
+loc_raw.subcategory["renegade_grenadier"] = {
+    en = "Bomber"
+}
+loc_raw.mod_ui["renegade_grenadier_notif_name"] = {
+    en = "Bomber"
+}
+loc_raw.mod_ui["renegade_grenadier_overlay_name"] = {
     en = "BMB"
 }
-loc["renegade_netgunner_overlay_name"] = {
+
+----------
+-- Trapper
+
+loc_raw.subcategory["renegade_netgunner"] = {
+    en = "Trapper"
+}
+loc_raw.mod_ui["renegade_netgunner_notif_name"] = {
+    en = "Trapper"
+}
+loc_raw.mod_ui["renegade_netgunner_overlay_name"] = {
     en = "TRP"
 }
-loc["renegade_sniper_overlay_name"] = {
+
+---------
+-- Sniper
+
+loc_raw.subcategory["renegade_sniper"] = {
+    en = "Sniper"
+}
+loc_raw.mod_ui["renegade_sniper_notif_name"] = {
+    en = "Sniper"
+}
+loc_raw.mod_ui["renegade_sniper_overlay_name"] = {
     en = "SNP"
 }
-loc["chaos_poxwalker_bomber_overlay_name"] = {
+
+-------------
+-- Poxburster
+
+loc_raw.subcategory["chaos_poxwalker_bomber"] = {
+    en = "Poxburster"
+}
+loc_raw.mod_ui["chaos_poxwalker_bomber_notif_name"] = {
+    en = "Poxburster"
+}
+loc_raw.mod_ui["chaos_poxwalker_bomber_overlay_name"] = {
     en = "BRST"
 }
-loc["chaos_beast_of_nurgle_overlay_name"] = {
+
+-----------
+-- Monsters
+
+-- Combined mod options subcategory
+
+loc_raw.subcategory["monsters"] = {
+    en = "Monsters"
+}
+
+-- Beast of Nurgle - Other locs
+
+loc_raw.mod_ui["chaos_beast_of_nurgle_notif_name"] = {
+    en = "BEAST OF NURGLE"
+}
+loc_raw.mod_ui["chaos_beast_of_nurgle_overlay_name"] = {
     en = "BST"
 }
-loc["chaos_plague_ogryn_overlay_name"] = {
+
+-- Plague Ogryn - Other locs
+
+loc_raw.mod_ui["chaos_plague_ogryn_notif_name"] = {
+    en = "PLAGUE OGRYN"
+}
+loc_raw.mod_ui["chaos_plague_ogryn_overlay_name"] = {
     en = "PLG"
 }
-loc["chaos_spawn_overlay_name"] = {
+
+-- Chaos Spawn - Other locs
+
+loc_raw.mod_ui["chaos_spawn_notif_name"] = {
+    en = "CHAOS SPAWN"
+}
+loc_raw.mod_ui["chaos_spawn_overlay_name"] = {
     en = "SPWN"
 }
 
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--           Applying prefixes & combining raw loc. entries
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-------------------------------------------------------
+--                Defining prefixes
+-------------------------------------------------------
+
+local prefixe_per_type = { }
+for prefix_type, _ in pairs(loc_raw) do
+    prefixe_per_type[prefix_type] = ""
+end
+prefixe_per_type.category = ""
+prefixe_per_type.subcategory = "    "
+prefixe_per_type.setting = ""
+prefixe_per_type.tooltip = ""
+prefixe_per_type.option = ""
+prefixe_per_type.mod_ui = ""
+prefixe_per_type.misc = ""
+
+
+-------------------------------------------------------
+--          Contructing final loc table
+-------------------------------------------------------
+
+local loc = { }
+
+for prefix_type, raw_loc_entries in pairs(loc_raw) do
+    for loc_entry_name, loc_entry in pairs(raw_loc_entries) do
+        loc[loc_entry_name] = { }
+        for lang, text in pairs(loc_entry) do
+            loc[loc_entry_name][lang] = prefixe_per_type[prefix_type]..text
+        end
+    end
+end
 
 return loc

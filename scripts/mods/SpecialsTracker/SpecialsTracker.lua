@@ -3,10 +3,15 @@ local mod = get_mod("SpecialsTracker")
 require("scripts/foundation/utilities/math")
 require("scripts/foundation/utilities/color")
 
-local Breeds = require("scripts/settings/breed/breeds")
+-- local Breeds = require("scripts/settings/breed/breeds")
 local TextUtils = require("scripts/utilities/ui/text")
 local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
-local ConstantElementNotificationFeed = require("scripts/ui/constant_elements/elements/notification_feed/constant_element_notification_feed")
+local ViewElementProfilePresetsSettings = require("scripts/ui/view_elements/view_element_profile_presets/view_element_profile_presets_settings")
+
+local util = mod.utilities
+local constants = mod.global_constants
+local settings = mod.settings
+settings.notif:init()
 
 
 ---------------------------------------------------------------------------
@@ -16,267 +21,372 @@ local ConstantElementNotificationFeed = require("scripts/ui/constant_elements/el
 ---------------------------------------------------------------------------
 
 -------------------------------------------------------
---               Generic utilities
+--                   Terminology
+-------------------------------------------------------
+
+--[[
+> Raw / clean breed name
+    A clean breed name is a breed name that has been "cleaned" by util.clean_breed_name. By opposition, a raw breed name is one that hasn't been cleaned yet.
+    This mod uses clean breed names in most every part of its code, and thus, breed names are assumed to be clean unless explicitly specified otherwise, except in the data file where we specify every time due to how frequently we need to juggle between raw and cleaned names.
+    The operations applied to breed names are as follows:
+        1. Removal of their possible "_mutator" marker at the end.
+        2. "renegade_flamer" and "cultist_flamer" are collapsed into the same clean breed name "flamer" in order to track them together.
+> Extended / base events
+    A base event is "spawn" or "death". An extended event is either a base event, or "hybrid". The base events correspond to what relevant event can happen to a tracked unit that this mod will want to track, and "hybrid" is the word used to designate notifs that combine a spawn notif and a death notif - e.g. "Sniper - Spawned x3 - Died x2". By default, "event" can be assumed to correspond to base events unless specified otherwise.
+> Priority levels
+    An integer, ranging from 0 to 4 as of writing this, describing how "important" a breed is considered to be by the mod. A lower priority level is a higher priority, with 0 being exclusive to, and enforced on, monsters.
+    A breed's priority level currently affects the following:
+        1. How high it appears in the overlay, with lower priority levels beeing higher (except lvl 0, monsters, which can be displayed at the top or the bottom).
+        2. The breeds are separated by priority levels in the overlay, in the form of a padding between lines when we "jump" from a priority level to another.
+        3. The breed name's color in its spawn/death/hybrid notifs.
+        4. Optionally, the color mentioned in 3. can be applied to the breed's text and unit number in the overlay. This HUD color is toggleable per priority level, and the lerp ratio applied between a base color and the color in 3. to get the HUD color is global and defined in the mod settings.
+        5. The breed's notifications priority.
+> (Color) index
+    A color index (or simply index) is either an extended event or a priority level (including 0).
+> Tracking method
+    Either "notif" or "overlay".
+> Notification multiplicity
+    The count of the number of events displayed on a notif. For instance:
+    - "Sniper died x3" has multiplicity 3.
+    - "Sniper died" technically has multiplicity 1, but isn't used in any way that uses multiplicity.
+    - "Sniper spawned x2 - died x3" has spawn multiplicity 2 and death multiplicity 3.
+--]]
+
+-------------------------------------------------------
+--                Refresh flags
 -------------------------------------------------------
 
 mod.hud_refresh_flags = {
-    -- Each field is a flag to let the relevant piece of code to refresh the relevant values of the HUD element
-    pos_or_scale = false,
-    color = false,
-    font = false,
+-- Each field is a flag to let the relevant piece of code know to refresh some relevant values it might be using
+    pos_or_scale = true,
+    color = true,
+    font = true,
+    notif_settings = true,
 }
 
-mod.get_breed_setting = function(breed_name, setting_suffix)
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                          Utilities
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- See the creation of mod.utilities in the data file for a brief summary of what it contains
+-- util is an alias for mod.utilities
+
+util.get_breed_setting = function(breed_name, setting_suffix)
     local breed_options_name = ""
-    if mod.is_monster(breed_name) then
+    if util.is_monster(breed_name) then
         breed_options_name = "monsters"
     else
         breed_options_name = breed_name
     end
-    return mod:get(breed_options_name..setting_suffix)
+    local setting_name = breed_options_name.."_"..setting_suffix
+    if setting_name == "monsters_priority" then
+        return 0
+    else
+        return mod:get(setting_name)
+    end
 end
 
-mod.sort_breed_names = function(a,b)
-    -- Ordering on clean breed names, defined as a sequence of several orderings
-    -- NB: We check if Breeds[a] exists in case a, a clean breed_name, is "flamer" (for instance) which isn't a valid breed
-    -- Order 1 - Monsters after non-monsters
-    if mod.is_monster(a) and not mod.is_monster(b) then
-        return(false)
-    elseif mod.is_monster(b) and not mod.is_monster(a) then
-        return(true)
+util.sort_breed_names = function(a,b)
+-- Ordering on clean breed names, defined as a sequence of several orderings
+-- This function isn't called often, so it shouldn't be necessary to store the relevant settings like we do for other functions. Furthermore, since it's called very early, it's most likely safer and easier to fetch the settings directly
+    --> Order 1 - Separate monsters and non-monsters according to the relevant setting
+    local monsters_bottom = mod:get("monsters_pos") == "bottom"
+    if util.is_monster(a) and not util.is_monster(b) then
+        return(not monsters_bottom)
+    elseif util.is_monster(b) and not util.is_monster(a) then
+        return(monsters_bottom)
     else
-        -- Order 2 - Separate by priority levels
-        local priority_a = mod.get_breed_setting(a, "_priority")
-        local priority_b = mod.get_breed_setting(b, "_priority")
+        --> Order 2 - Separate by priority levels
+        local priority_a = util.get_breed_setting(a, "priority")
+        local priority_b = util.get_breed_setting(b, "priority")
         if priority_a < priority_b then
             return(true)
         elseif priority_a > priority_b then
             return(false)
         else
-            -- Order 3 - Breeds with overlay setting "Always" come before those with "Only if active"
-            local overlay_setting_a = mod.get_breed_setting(a, "_overlay")
-            local overlay_setting_b = mod.get_breed_setting(b, "_overlay")
+            --> Order 3 - Breeds with overlay setting "Always" come before those with "Only if active"
+            local overlay_setting_a = util.get_breed_setting(a, "overlay")
+            local overlay_setting_b = util.get_breed_setting(b, "overlay")
             if overlay_setting_a == "always" and overlay_setting_b == "only_if_active" then
                 return true
             elseif overlay_setting_b == "always" and overlay_setting_a == "only_if_active" then
                 return false
             else
-                -- Order 4 - Alphabetical order
+                --> Order 4 - Alphabetical order
                 return(mod:localize(a) < mod:localize(b))
             end
         end
     end
 end
 
+util.notif_clearing.clear = function()
+-- Removes all mod notifs from the notification feed
+    for _, breed_name in pairs(constants.trackable_breeds.array) do
+        for _, event in pairs(constants.events_extended) do
+            Managers.event:trigger("event_remove_notification", mod.active_notifs[breed_name][event].id)
+            mod.active_notifs[breed_name][event].id = nil
+        end
+    end
+end
+
+
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                        Global constants
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- See the creation of mod.utilities in the data file for a brief summary of what it contains and first definitions
+-- constants is an alias for mod.global_constants
+
+-------------------------------------------------------
+--                trackable_breeds
+-------------------------------------------------------
+
+-- The first part of constants.trackable_breeds is defined in the data file
+--[[
+constants.trackable_breeds.array
+    The array of trackable breeds. Originally sorted with monsters last, then by alphabetical order. Can be sorted with the complete ordering with -.sort()
+constants.trackable_breeds.inv_table
+    constants.trackable_breeds.inv_table[breed_name] = true if breed_name is trackable by the mod, nil otherwise
+constants.trackable_breeds.sort()
+    Re-sorts interesting_breed_names with a more complete ordering than what is applied to is at its creation
+--]]
+
+constants.trackable_breeds.sort = function()
+    -- Fetches the mod options directly, so no need to initialise any mod.settings field
+    table.sort(constants.trackable_breeds.array, util.sort_breed_names)
+end
+constants.trackable_breeds.sort()
+
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                             Settings
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- mod.settings stores various mod settings, as well as values/methods that depend on them
+-- See the creation of mod.settings in the data file for a brief summary of what it contains and first definitions
+-- settings is an alias for mod.settings
+
+-------------------------------------------------------
+--                     notif
+-------------------------------------------------------
+
+--[[
+settings.notif:init()
+    Fetches relevant game settings and stores them in the fields of settings.notif
+settings.notif.display_type
+    The current notif display type, either "icon" or "text".
+    Associated setting: "notif_display_type"
+settings.notif.grouping
+    Boolean; whether spawn and death notifs pertaining to a same breed should be combined in a single "hybrid" notif
+    Associated setting: "notif_grouping"
+--]]
 
 -------------------------------------------------------
 --                     color
 -------------------------------------------------------
 
--- The first part of mod.color is defined in the data file
 --[[
-mod.color.init()
-    fetches the game settings and stores them in various attributes of mod.color.
-mod.color.indices
-    All valid color indices, i.e. events ("spawn" and "death") and the priority levels (as of writing this, integers from 1 to 4)
-mod.color.notif_multpl
-    The bright color used for the "x[count]" text in event notifs right when the count changes.
-mod.color.new_notif_gradient(t, base_color)
-    t is the time since the notif's last update, and base_color is the color towards which we want the "x[count]" text to move. Returned is the color for said text at the given instant. See this function's definition for the definition of the characteristic time.
-mod.color.notif - Everything else related the notifications' colors.
-    mod.color.notif.table - Table indexed by valid indices.
-        -.table[event] is the color of the background of the event notification, and -.table[priority_level] is the color of the name of units belonging to priority_level in notifications.
-        NB: The priority_level indices are strings (e.g. "2", and not 2) - although with the discovery of tonumber, we could maybe try to handle priority levels as integers if it turns out to be easier.
-mod.color.hud - Everything related to the HUD element's colors.
-    mod.color.hud.use_color_priority_lvl - Table such that -.use_color_priority[lvl] stores setting "color_used_in_hud_"..lvl
-        The stored setting for priority level lvl is a boolean that determines whether priority level lvl uses a color different from the base "non-zero units active" color in its HUD widget. (This color is further described in the following entries)
-        mod.color.hud.use_color_priority_lvl[color_index] = mod:get("color_used_in_hud_"..color_index)
-    mod.color.hud.lerp_ratio - Stores setting "hud_color_lerp_ratio"
+settings.color:init()
+    Fetches relevant game settings and stores them in the fields of settings.color
+settings.color.notif[index / "text_gradient"]
+    settings.color.notif[index], index being an extended event or a priority level (incl. 0)
+        -.notif[event] is the color of the background of the extended event notification, and -.notif[priority_level] is the color of the name of units belonging to priority_level in notifications.
+        NB: The priority_level indices are strings (e.g. "2", and not 2)
+    settings.color.notif.text_gradient(t, base_color)
+        t is the time since the notif's last update, and base_color is the color towards which we want the "x[count]" text to move. Returned is the color for said text at the given instant.
+settings.color.hud[prty_lvl / "lerp_ratio"]
+    settings.color.hud.lerp_ratio - Stores setting "hud_color_lerp_ratio"
         The ratio used in the linear interpolation between white and the priority level notification name colors when creating the color their corresponding HUD elements will take (when at least one is active).
-        NB: Lower ratio = closer to white
-    mod.color.hud.table - Table storing various HUD colors:
-        mod.color.hud.table.non_zero_units = {255, 255, 255, 255}
-            The default color used for HUD widgets when there's at least one active unit of the widget's breed.
-        mod.color.hud.table.zero_units = {160, 180, 180, 180}
-            The color used for HUD widgets when there's no active unit of the widget's breed.
-        mod.color.hud.table[lvl]
-            ... is the color used for the widgets of breeds of priority level lvl when at least one unit of said breed is active.
+        Lower ratio = closer to white.
+    settings.color.hud[priority_level]
+        The color used for the widgets of breeds of given priority level (0 included) when at least one unit of said breed is active.
 --]]
 
-mod.color.init = function()
-    mod.color.hud.lerp_ratio = mod:get("hud_color_lerp_ratio") or 0.8
-    -- Initialise event mod colors, i.e. colors of the background of spawn/death notifications
-    for _, event in pairs(mod.events) do
+settings.color.init = function(self)
+    self.hud.lerp_ratio = mod:get("hud_color_lerp_ratio") or 0.8
+    -- Event notif background colors
+    for _, event in pairs(constants.events_extended) do
         local notif_color_evt = { }
         table.insert(notif_color_evt, mod:get("color_"..event.."_alpha"))
         for _, col in pairs({"r","g","b"}) do
             table.insert(notif_color_evt, mod:get("color_"..event.."_"..col))
         end
-        mod.color.notif.table[event] = notif_color_evt
+        self.notif[event] = notif_color_evt
     end
-    -- Initialise hud mod colors, i.e. the color a breed's widget will take if at least one unit is alive
-    -- This color can be a linear extrapolation between white and the breed's priority level's notification color, or a default non-zero color if toggled off
-    for _, lvl in pairs(mod.priority_levels) do
+    -- Priority level colors
+    for _, lvl in pairs(constants.priority_levels) do
+        -- Name color in notifs
+        local options_lvl_name = lvl == "0" and "monsters" or lvl
         local notif_color_lvl = { }
         local hud_color_lvl = { }
         table.insert(notif_color_lvl, 255)
         for _, col in pairs({"r","g","b"}) do
-            table.insert(notif_color_lvl, mod:get("color_"..lvl.."_"..col))
+            table.insert(notif_color_lvl, mod:get("color_"..options_lvl_name.."_"..col))
         end
-        mod.color.notif.table[lvl] = notif_color_lvl
+        self.notif[lvl] = notif_color_lvl
+        -- Name color in overlay
+        local apply_color_to_hud = mod:get("color_used_in_hud_"..options_lvl_name)
         for i=1, 4 do
             local color_code = 0
-            if mod:get("color_used_in_hud_"..lvl) then
-                color_code = math.lerp(mod.color.white[i], notif_color_lvl[i], mod.color.hud.lerp_ratio)
-            else
-                color_code = mod.color.hud.table.non_zero_units[i]
-            end
+            color_code = apply_color_to_hud
+            and
+                math.lerp(constants.color.white[i], notif_color_lvl[i], self.hud.lerp_ratio)
+            or
+                constants.color.non_zero_units[i]
             table.insert(hud_color_lvl, color_code)
         end
-        mod.color.hud.table[lvl] = hud_color_lvl
+        self.hud[lvl] = hud_color_lvl
     end
 end
 
-mod.color.init()
+settings.color:init()
 
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                   Active notifs & units tables
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 -------------------------------------------------------
---             interesting_breed_names
+--                  active_notifs
 -------------------------------------------------------
 
--- The first part of mod.interesting_breed_names is defined in the data file
--- NB: A "clean breed name" is a breed_name cleaned by mod.clean_breed_name, which removed possible a "_mutator" marker at the end of the breed name, *and* collapses "renegade_flamer" and "cultist_flamer" into the same clean_breed_name "flamer" in order to track them together. Unless specified otherwise, breed_name's are assumed to have been "cleaned".
 --[[
-mod.interesting_breed_names.array
-    The array of trackable breeds, sorted with monsters last, then by alphabetical order. Since we need it in this stage in the data file, it is defined there, which means we don't have access to priority level yet (see -.sort()).
-mod.interesting_breed_names.inverted_table
-    mod.interesting_breed_names.inverted_table[breed_name] = true if breed_name is trackable by the mod, nil otherwise.
-mod.interesting_breed_names.sort()
-    Re-sorts interesting_breed_names, not only by tag then alphabetically, but also by priority order between those two orders.
+mod.active_notifs
+    mod.active_notifs[breed_name]["spawn"/"death"]
+        Has the form {id = latest_known_notif_id, count = notif_multiplicity}, where a notif's "multiplicity" is the number of relevant events it denotes - e.g. "Sniper died x4" has multiplicity 4.
+    mod.active_notifs[breed_name]["hybrid"]
+        Has the form {id = latest_known_notif_id, count_spawn = notif_spawn_multiplicity, count_spawn = notif_spawn_multiplicity}.
+The notif id's are *not* necessarily cleared when a notif expires
 --]]
 
--- mod.interesting_breed_names.init()
-mod.interesting_breed_names.sort = function()
-    -- Re-sorts interesting_breed_names, not only by tag then alphabetically, but also by priority order between those two
-    table.sort(mod.interesting_breed_names.array, mod.sort_breed_names)
-end
-mod.interesting_breed_names.sort()
-
-
--------------------------------------------------------
---                 active_notifs
--------------------------------------------------------
-
--- Doubly indexed table containing the last known id of active notifications, as well as their multiplicity (e.g. "Sniper died x4" has multiplicity 4).
--- The notif id's are *not* cleared when a notif expires!
-
 mod.active_notifs = {}
-for _, breed_name in pairs(mod.interesting_breed_names.array) do
+for _, breed_name in pairs(constants.trackable_breeds.array) do
     mod.active_notifs[breed_name] = {}
-    for _, event in pairs(mod.events) do
+    for _, event in pairs(constants.events) do
         mod.active_notifs[breed_name][event] = {
             id = nil,
             count = 0
         }
     end
+    mod.active_notifs[breed_name]["hybrid"] = {
+        id = nil,
+        count_spawn = 0,
+        count_death = 0,
+    }
 end
+
 
 -------------------------------------------------------
 --                 tracked_units
 -------------------------------------------------------
 
-mod.tracked_units = {}
 --[[
-Data:
-    mod.tracked_units.units[breed_name]
-        An *array* containing active units of breed_name. Will be tracked to purge dead units regardless of whether breed_name is tracked or not, but spawned units will only be added to it if the breed is tracked.
-        NB: -.units[breed_name] will never be nil
-    mod.tracked_units.unit_count[breed_name]
-        The number of active units of breed_name (which is simply #mod.tracked_units.unit_count[breed_name], but is stored separately to avoid checking the array size at every HUD element update)
-        NB: -.unit_count[breed_name] will never be nil
-    mod.tracked_units.[tracking method]_breeds_array
-        Array containing the breed names tracked with [tracking_method], which can be "notif" or "overlay". Array is sorted according to the mod.sort_breed_names order
-    mod.tracked_units.[tracking_method]_breeds_inverted_table
-        mod.tracked_units.[tracking_method]_breeds_inverted_table[breed_name] = true if breed_name is tracked by [tracking_method], nil otherwise
-    mod.tracked_units.overlay_only_if_active
-        mod.tracked_units.overlay_only_if_active[breed_name] = true if breed_name should only be shown in the overlay if it's active, nil otherwise
-    mod.tracked_units.priority_levels
-        mod.tracked_units.priority_levels[breed_name] is the tostring'd version of the breed's priority level
+> Data:
+mod.tracked_units.units[breed_name]
+    An array containing active units of breed_name. Will be tracked to, every tick of update, purge dead units regardless of whether breed_name is tracked or not, but spawned units will only be added to it if the breed is tracked.
+mod.tracked_units.unit_count[breed_name]
+    The number of active units of breed_name (which is simply #mod.tracked_units.unit_count[breed_name], but is stored separately to avoid checking the array size at every update tick of the HUD element)
+mod.tracked_units.<tracking method>_breeds_array
+    Array containing the breed names tracked with <tracking_method> ("notif" or "overlay").
+    Array is sorted according to util.sort_breed_names
+mod.tracked_units.<tracking method>_breeds_inv_table
+    Inverted table corresponding to the former array
+mod.tracked_units.overlay_breeds.only_if_active
+    mod.tracked_units.overlay_breeds.only_if_active[breed_name] = true if breed_name should only be shown in the overlay if it's active, nil otherwise
+mod.tracked_units.priority_levels
+    mod.tracked_units.priority_levels[breed_name] is the tostring'd version of the breed's priority level
 
-Methods:
-    mod.tracked_units.init()
-        Initialises mod.tracked_units.breeds_array and mod.tracked_units.breeds_inverted_table so they can be used to fetch tracked breeds.
-        NB: This does not reset the -.units and -.unit_count tables, but since we constantly purge the dead units from -.units and only insert it with spawning units that are tracked (i.e. in the tables the -.init() function refreshes), untracked breeds will slowly be emptied of units naturally when they died.
-        Initialises mod.tracked_units.breeds_array and mod.tracked_units.breeds_inverted_table so they can be used to fetch tracked breeds.
-        NB: This does not reset the -.units and -.unit_count tables, but since we constantly purge the dead units from -.units and only insert it with spawning units that are tracked (i.e. in the tables the -.init() function refreshes), untracked breeds will slowly be emptied of units naturally when they died.
-    mod.tracked_units.clean_dead_units()
-        Goes through all tracked units to look for dead ones. If one is found, they are removed from their mod.tracked_units.units[breed_name] array.
-        Returns a table t such that t[breed_name] is the number of dead units of breed_name that were removed.
-    mod.tracked_units.refresh_unit_count(breed_name)
-        Refreshes the value of mod.tracked_units.unit_count[breed_name].
-    mod.tracked_units.record_unit_spawn(breed_name, unit)
-        If breed_name is tracked, adds unit to mod.tracked_units.units[breed_name], refreshes the value of mod.tracked_units.unit_count[breed_name], and returns true. Otherwise, does and returns nothing.
-        NB: This method has 2 arguments because we were getting breed_name from the network (see the hook of "_add_network_unit"). But is it really necessary, or can we just use the unit's breed directly?
-    mod.tracked_units.record_unit_death(unit)
-        If breed_name is tracked, removes unit from mod.tracked_units.units[breed_name], refreshes the value of mod.tracked_units.unit_count[breed_name], and returns breed_name. Otherwise, does and returns nothing.
+> Methods:
+mod.tracked_units:init()
+    Initialises mod.tracked_units.<tracking_method>_breeds_array and mod.tracked_units.<tracking_method>_breeds_inv_table so they can be used to check currently tracked breeds.
+    NB: This does not reset the -.units and -.unit_count tables, but since we constantly purge the dead units from -.units and only insert it with spawning units that are tracked (i.e. in the tables the -:init() function refreshes), untracked breeds will slowly be emptied of units naturally when they died.
+mod.tracked_units.clean_dead_units()
+    Goes through all tracked units to look for dead ones. If one is found, they are removed from their mod.tracked_units.units[breed_name] array.
+    Returns a table t such that t[breed_name] is the number of dead units of breed_name that were removed, or nil if none were.
+mod.tracked_units.refresh_unit_count(breed_name)
+    Refreshes the value of mod.tracked_units.unit_count[breed_name].
+mod.tracked_units.record_unit_spawn(breed_name, unit)
+    If breed_name is tracked, adds unit to mod.tracked_units.units[breed_name], refreshes the value of mod.tracked_units.unit_count[breed_name], and returns true.
+    Otherwise, does and returns nothing.
+    NB: This method has 2 arguments because we were getting breed_name from the network (see the hook of "_add_network_unit"). But is it really necessary, or can we just use the unit's breed directly?
+mod.tracked_units.record_unit_death(unit)
+    If breed_name is tracked, removes unit from mod.tracked_units.units[breed_name], refreshes the value of mod.tracked_units.unit_count[breed_name], and returns breed_name. Otherwise, does and returns nothing.
 --]]
 
-mod.tracked_units.units = {}
-mod.tracked_units.unit_count = {}
-for _, breed_name in pairs(mod.interesting_breed_names.array) do
+mod.tracked_units = {
+    units = {},
+    unit_count = {},
+}
+for _, breed_name in pairs(constants.trackable_breeds.array) do
     mod.tracked_units.units[breed_name] = {}
     mod.tracked_units.unit_count[breed_name] = 0
 end
 
-mod.tracked_units.init = function()
-    mod.tracked_units.priority_levels = {}
-    mod.tracked_units.notif_breeds_array = {}
-    mod.tracked_units.notif_breeds_inverted_table = {}
-    mod.tracked_units.overlay_breeds_array = {}
-    mod.tracked_units.overlay_breeds_inverted_table = {}
-    mod.tracked_units.overlay_only_if_active = {}
-    for _, breed_name in pairs(mod.interesting_breed_names.array) do
-        mod.tracked_units.priority_levels[breed_name] = tostring(mod.get_breed_setting(breed_name, "_priority"))
-        if mod.get_breed_setting(breed_name, "_notif") then
-            table.insert(mod.tracked_units.notif_breeds_array, breed_name)
-            mod.tracked_units.notif_breeds_inverted_table[breed_name] = true
+mod.tracked_units.init = function(self)
+    self.priority_levels = { }
+    self.notif_breeds = {
+        array = { },
+        inv_table = { },
+    }
+    self.overlay_breeds = {
+        array = { },
+        inv_table = { },
+        only_if_active = { },
+    }
+    for _, breed_name in pairs(constants.trackable_breeds.array) do
+        self.priority_levels[breed_name] = tostring(util.get_breed_setting(breed_name, "priority"))
+        if util.get_breed_setting(breed_name, "notif") then
+            table.insert(self.notif_breeds.array, breed_name)
+            self.notif_breeds.inv_table[breed_name] = true
         end
-        local overlay_setting = mod.get_breed_setting(breed_name, "_overlay")
+        local overlay_setting = util.get_breed_setting(breed_name, "overlay")
         if overlay_setting == "always" or overlay_setting == "only_if_active" then
-            table.insert(mod.tracked_units.overlay_breeds_array, breed_name)
-            mod.tracked_units.overlay_breeds_inverted_table[breed_name] = true
+            table.insert(self.overlay_breeds.array, breed_name)
+            self.overlay_breeds.inv_table[breed_name] = true
         end
         if overlay_setting == "only_if_active" then
-            mod.tracked_units.overlay_only_if_active[breed_name] = true
+            self.overlay_breeds.only_if_active[breed_name] = true
         end
     end
-    table.sort(mod.tracked_units.notif_breeds_array, mod.sort_breed_names)
-    table.sort(mod.tracked_units.overlay_breeds_array, mod.sort_breed_names)
+    table.sort(self.notif_breeds.array, util.sort_breed_names)
+    table.sort(self.overlay_breeds.array, util.sort_breed_names)
     mod.hud_refresh_flags.pos_or_scale = true
 end
 
-mod.tracked_units.init()
+mod.tracked_units:init()
 
 
 mod.tracked_units.refresh_unit_count = function(breed_name)
-    -- Should only be called on a valid breed_name!
+    -- Should only be called on a valid breed_name
     local old_unit_count = mod.tracked_units.unit_count[breed_name] or 0
     local new_unit_count = #mod.tracked_units.units[breed_name] or 0
     mod.tracked_units.unit_count[breed_name] = new_unit_count
-    if mod.tracked_units.overlay_only_if_active[breed_name] then
-    -- If the relevant option is toggled on, check whether the unit count changed from zero to non-zero or vice-versa
+    if mod.tracked_units.overlay_breeds.only_if_active[breed_name] then
         local one_count_was_zero = old_unit_count * new_unit_count == 0
         local one_count_was_non_zero = old_unit_count + new_unit_count ~= 0
+        local up_to_mult_of_ten = (new_unit_count%10 == 0 and old_unit_count%10 == 9)
+        local down_from_mult_of_ten = (new_unit_count%10 == 9 and old_unit_count%10 == 0)
         if one_count_was_zero and one_count_was_non_zero then
+        -- If the relevant option is toggled on, check whether the unit count changed from zero to non-zero or vice-versa
+            mod.hud_refresh_flags.pos_or_scale = true
+        end
+        if up_to_mult_of_ten or down_from_mult_of_ten then
+        -- If a unit count goes from a multiple of 10 to one below it (or vice-versa), flag the hud pos/scale to be redefined to account for the fact that, for instance, "10" is larger visually than "9", and as such, the size of the background might need to be resized to the right of the numbers
             mod.hud_refresh_flags.pos_or_scale = true
         end
     end
-    if (new_unit_count%10 == 0 and old_unit_count%10 == 9)
-    or (new_unit_count%10 == 9 and old_unit_count%10 == 0) then
-        -- If a unit count goes from a multiple of 10 to the multiple of 10 minus 1 (or vice-versa), flag the hud pos/scale to be redefined to account for the fact that, for instance, "10" is larger in visual size than "9", and as such, the size of the background might need to be extended or shortened to the right of the numbers
-        mod.hud_refresh_flags.pos_or_scale = true
-    end
 end
+
 
 mod.tracked_units.clean_dead_units = function()
     local nb_of_deaths_per_breed = {}
@@ -294,29 +404,31 @@ mod.tracked_units.clean_dead_units = function()
     return(nb_of_deaths_per_breed)
 end
 
+
 mod.tracked_units.record_unit_death = function(unit)
     local unit_data_ext = ScriptUnit.extension(unit, "unit_data_system")
     local breed = unit_data_ext and unit_data_ext:breed()
     local raw_breed_name = breed and breed.name
-    local breed_name = raw_breed_name and mod.clean_breed_name(raw_breed_name)
-    if mod.tracked_units.units[breed_name] then
-        local unit_index = table.index_of(mod.tracked_units.units[breed_name], unit)
-        if unit_index ~= -1 then
-            table.remove(mod.tracked_units.units[breed_name], unit_index)
-            mod.tracked_units.refresh_unit_count(breed_name)
-            return(breed_name)
-        else
-            -- Unit might not be there if the mod was reset/started while the unit was already alive
-            if mod.tracked_units.notif_breeds_inverted_table[breed_name] then
-                Managers.event:trigger("event_add_notification_message", "alert", { text = "Dead unit was not known to be alive: "..Localize(breed.display_name)})
-            end
+    local breed_name = raw_breed_name and util.clean_breed_name(raw_breed_name)
+    local units_table = mod.tracked_units.units[breed_name]
+    if not units_table then
+        return
+    end
+    local unit_index = table.index_of(units_table, unit)
+    if unit_index ~= -1 then
+        table.remove(units_table, unit_index)
+        mod.tracked_units.refresh_unit_count(breed_name)
+        return(breed_name)
+    else
+        if mod.tracked_units.notif_breeds.inv_table[breed_name] then
+            Managers.event:trigger("event_add_notification_message", "alert", { text = "Dead unit was not known to be alive: "..Localize(breed.display_name)})
         end
     end
 end
 
 mod.tracked_units.record_unit_spawn = function(breed_name, unit)
-    local tracked_notif = mod.tracked_units.notif_breeds_inverted_table[breed_name]
-    local tracked_overlay = mod.tracked_units.overlay_breeds_inverted_table[breed_name]
+    local tracked_notif = mod.tracked_units.notif_breeds.inv_table[breed_name]
+    local tracked_overlay = mod.tracked_units.overlay_breeds.inv_table[breed_name]
     if tracked_notif or tracked_overlay then
         table.insert(mod.tracked_units.units[breed_name], unit)
         mod.tracked_units.refresh_unit_count(breed_name)
@@ -331,7 +443,7 @@ end
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
--- See the SpecialsTracker_HUDElement file for the actual definitions
+-- See the HUDElement file for the HUD element definitions
 
 local hud_element = {
 	class_name = "HudElementSpecialsTracker",
@@ -356,6 +468,7 @@ end
 
 mod:hook_require("scripts/ui/hud/hud_elements_player", add_hud_element)
 mod:hook_require("scripts/ui/hud/hud_elements_player_onboarding", add_hud_element)
+mod:hook_require("scripts/ui/hud/hud_elements_spectator", add_hud_element)
 
 
 ---------------------------------------------------------------------------
@@ -364,125 +477,238 @@ mod:hook_require("scripts/ui/hud/hud_elements_player_onboarding", add_hud_elemen
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-mod:hook("ConstantElementNotificationFeed", "_generate_notification_data", function(func, self, message_type, data)
-    -- Add a "spawn" and a "death" notification types for our mod
-    if message_type == "spawn" or message_type == "death" then
-        local notif_data = {
-            type = "default",
-            show_shine = true,
-            glow_opacity = 0.45,
-            texts = {
-                {
-                    display_name = data.message
-                }
-            },
-            color = mod.color.notif.table[message_type],
-            line_color = mod.color.white,
-            priority_order = data.notif_priority
-            -- scale_icon = true,
-            -- icon = icon,
-            -- item = visual_item,
-            -- icon_size = icon_size,
-            -- icon_material_values = icon_material_values,
-            -- enter_sound_event = enter_sound_event
-            -- exit_sound_event = exit_sound_event
-        }
-        notif_data.enter_sound_event = notif_data.enter_sound_event or UISoundEvents.notification_default_enter
-        notif_data.exit_sound_event = notif_data.exit_sound_event or UISoundEvents.notification_default_exit
-        return notif_data
-    else
-        return(func(self, message_type, data))
-    end
-end)
+-------------------------------------------------------
+--             Preliminary utilities
+-------------------------------------------------------
 
+local event_icon = function(event)
+    local event_number = event == "spawn" and "13" or (event == "death" and "11" or "19")
+    return ViewElementProfilePresetsSettings.optional_preset_icons_lookup["icon_"..event_number]
+end
 
 local get_breed_color = function(breed_name)
+    if mod.hud_refresh_flags.color then
+        settings.color:init()
+        mod.hud_refresh_flags.color = false
+    end
     local breed_priority = mod.tracked_units.priority_levels[breed_name]
-    return mod.color.notif.table[breed_priority]
+    return settings.color.notif[breed_priority] or constants.color.white
 end
 
 local get_breed_presentation_name = function(breed_name)
-    -- Argument: A cleaned breed_name
-    -- Returns: nil if the breed_name is nil, the unit's (colored) display name otherwise
+    -- Takes a cleaned breed_name, and returns the unit's (colored) display name (or nil if the cleaned breed_name is invalid, aka not localized)
     local localised_name = mod:localize(breed_name.."_notif_name")
     local this_color = get_breed_color(breed_name)
 
     return localised_name and TextUtils.apply_color_to_text(localised_name, this_color)
 end
 
-local add_new_notif = function(breed_name, event)
+
+-------------------------------------------------------
+--             Notification generation
+-------------------------------------------------------
+
+mod:hook("ConstantElementNotificationFeed", "_generate_notification_data", function(func, self, message_type, data)
+    -- Adds "spawn", "death" and "hybrid" notification types for our mod
+    if message_type ~= "spawn" and message_type ~= "death" and message_type ~= "hybrid" then
+        return(func(self, message_type, data))
+    else
+        local notif_data = {
+            type = "default",
+            show_shine = true,
+            glow_opacity = 0.45,
+            color = settings.color.notif[message_type],
+            line_color = constants.color.white,
+            priority_order = data.notif_priority,
+        }
+        if message_type == "spawn" or message_type == "death" then
+            notif_data.texts = {
+                {
+                    display_name = data.message
+                },
+            }
+            notif_data.enter_sound_event = settings.notif.sound["enter_"..message_type] --mod:get("sound_"..message_type)
+        else
+            notif_data.texts = {
+                {
+                    display_name = data.message_1
+                },
+                {
+                    display_name = data.message_2
+                }
+            }
+            notif_data.enter_sound_event = settings.notif.sound["enter_"..data.triggering_event] --mod:get("sound_"..data.triggering_event)
+        end
+        if settings.notif.display_type == "icon" then
+            notif_data.icon = event_icon(message_type)
+            notif_data.scale_icon = true
+            notif_data.icon_size = "medium"
+        end
+        notif_data.enter_sound_event = notif_data.enter_sound_event or UISoundEvents.notification_default_enter
+        notif_data.exit_sound_event = notif_data.exit_sound_event or UISoundEvents.notification_default_exit
+        return notif_data
+    end
+end)
+
+
+local add_new_notif = function(breed_name, event, data)
+    -- NB: event can be "spawn", "death", or "hybrid"
+    -- If event is "spawn" or "death", data doesn't matter; if it's "hybrid", data.spawn and -.death will be the respective counts
     local display_name = get_breed_presentation_name(breed_name)
-    local message = mod:localize(event.."_message_simple", display_name)
+    local message = mod:localize(event.."_message_simple_"..settings.notif.display_type, display_name)
     local breed_priority = mod.tracked_units.priority_levels[breed_name]
     local notif_priority = 5 - tonumber(breed_priority)
     -- Breed priorities are such that higher number = lower priority, but the game's notif priorities are such that higher number = higher priority, so we need to reverse our priority
+    local texts = { }
+    if event ~= "hybrid" then
+        texts = {
+            message = message,
+            notif_priority = notif_priority,
+        }
+    else
+        texts = {
+            message_1 = message,
+            message_2 = message,
+            notif_priority = notif_priority,
+            triggering_event = data.triggering_event,
+        }
+    end
     Managers.event:trigger(
         "event_add_notification_message",
         event,
-        {
-            message = message,
-            notif_priority = notif_priority,
-        },
+        texts,
         function(id)
-            mod.active_notifs[breed_name][event] = {id = id, count = 1}
+            mod.active_notifs[breed_name][event].id = id
+            if event == "hybrid" then
+                for _, evt in pairs(constants.events) do
+                    mod.active_notifs[breed_name]["hybrid"]["count_"..evt] = data[evt]
+                end
+            else
+                mod.active_notifs[breed_name][event].count = 1
+            end
         end
     )
 end
 
 
-local display_notification = function(breed_name, event)
-    -- Updates mod.tracked_units.unit_count[breed_name], and either displays a spawn/death notif if none are active for breed_name and event, or updates and refreshes the existing one if it exists.
-    -- NB: This function should only be called on valid breeds!
+local display_notification = function(breed_name, base_event)
+--> If there already is an active notif for breed_name and base_event, update and refresh it.
+--> If there isn't, and notifs are not set to be grouped into hybrid notifs, display a new one.
+--> If there isn't, and notifs are set to be grouped when possible:
+    -- If there already is a hybrid notif for breed_name, update it.
+    -- If there isn't, but there is a notif for the other event from base_event, remove said notif and create a new hybrid one.
+    -- If there is neither a hybrid nor an other_base_event notif active, create a new one for base_event.
+
+    -- NB: This function should only be called on valid breeds
     local constant_elements = Managers.ui and Managers.ui:ui_constant_elements()
     local notif_element = constant_elements and constant_elements:element("ConstantElementNotificationFeed")
-    local display_name = get_breed_presentation_name(breed_name)
-    local active_notif_info = mod.active_notifs[breed_name][event]
+    local active_notif_info = mod.active_notifs[breed_name][base_event]
     local id_or_nil = active_notif_info.id
 
-    if not id_or_nil then
-        add_new_notif(breed_name, event)
+    if id_or_nil and notif_element:_notification_by_id(id_or_nil) then
+        -->> The notif for breed_name and base_event still exists, let's update it
+        local notif = notif_element:_notification_by_id(id_or_nil)
+        -- Increase the multiplicity counter (which will cause the text to be updated at the next tick of update)
+        active_notif_info.count = active_notif_info.count + 1
+        -- Reset notif time:
+        notif.time = 0
+        -- Replay notif sound:
+        local sound_event = notif.enter_sound_event
+        if sound_event then
+            Managers.ui:play_2d_sound(sound_event)
+        end
     else
-        local notif_or_nil = notif_element:_notification_by_id(id_or_nil)
-        if not notif_or_nil then
-            -- The notif id existed, but the corresponding notif expired
-            add_new_notif(breed_name, event)
+        -->> There's no notif for breed_name and base_event
+        if not settings.notif.grouping then
+            --> If notifs are not grouped, display a new one
+            add_new_notif(breed_name, base_event, nil)
         else
-            -- The found notif still exists, let's update it
-            active_notif_info.count = active_notif_info.count + 1
-            local notif_multiplicity = "  "..TextUtils.apply_color_to_text("x"..tostring(active_notif_info.count), mod.color.notif_multpl)
-            local message = mod:localize(event.."_message", display_name, notif_multiplicity)
-            -- Update notif text:
-            local texts = { message }
-            notif_element:_set_texts(notif_or_nil, texts)
-            -- Reset notif time:
-            notif_or_nil.time = 0
-            -- Replay notif sound:
-            local sound_event = notif_or_nil.enter_sound_event
-			if sound_event then
-				Managers.ui:play_2d_sound(sound_event)
-			end
+            --> If they are grouped:
+            local other_base_event = base_event == "spawn" and "death" or "spawn"
+            local other_evt_active_notif_info = mod.active_notifs[breed_name][other_base_event]
+            local other_evt_id_or_nil = other_evt_active_notif_info.id
+            local hybrid_active_notif_info = mod.active_notifs[breed_name]["hybrid"]
+            local hybrid_id_or_nil = hybrid_active_notif_info.id
+
+            if hybrid_id_or_nil and notif_element:_notification_by_id(hybrid_id_or_nil) then
+                -- There already is a hybrid notif to update
+                local hybrid_notif = notif_element:_notification_by_id(hybrid_id_or_nil)
+                -- Increase the multiplicity counter
+                hybrid_active_notif_info["count_"..base_event] = hybrid_active_notif_info["count_"..base_event] + 1
+                -- Reset notif time:
+                hybrid_notif.time = 0
+                -- Replay notif sound:
+                local sound_event = settings.notif.sound["enter_"..base_event] --mod:get("sound_"..base_event)--hybrid_notif.enter_sound_event
+                if sound_event then
+                    Managers.ui:play_2d_sound(sound_event)
+                end
+            elseif other_evt_id_or_nil and notif_element:_notification_by_id(other_evt_id_or_nil) then
+                -- There is an other_evt notif to turn hybrid
+                local data = { }
+                data[base_event] = 1
+                data[other_base_event] = other_evt_active_notif_info.count
+                data.triggering_event = base_event
+                add_new_notif(breed_name, "hybrid", data)
+                Managers.event:trigger("event_remove_notification", other_evt_id_or_nil)
+                mod.active_notifs[breed_name][base_event] = {
+                    id = nil,
+                    count = 0,
+                }
+                mod.active_notifs[breed_name][other_base_event] = {
+                    id = nil,
+                    count = 0,
+                }
+            else
+                -- Otherwise, just create a new notif
+                add_new_notif(breed_name, base_event, nil)
+            end
         end
     end
 end
 
--- The following function is called every tick of mod.update to make the "x[count]" text's color start with a bright color, and move along a gradient towards another, more "tame" color
+
 local refresh_notif_text_colors = function()
+-- This function is called every tick of mod.update to make the "x[count]" text's color start with a bright color, and move along a gradient towards another, more "tame" color. It also handles giving notifications with multiplicity thee right text.
     local constant_elements = Managers.ui and Managers.ui:ui_constant_elements()
     local notif_element = constant_elements and constant_elements:element("ConstantElementNotificationFeed")
-    for _, breed_name in pairs(mod.interesting_breed_names.array) do
-        for _, event in pairs(mod.events) do
+    for _, breed_name in pairs(constants.trackable_breeds.array) do
+        local notif_type = settings.notif.display_type
+        -- Hybrid notifs:
+        local hybrid_notif_info = mod.active_notifs[breed_name]["hybrid"]
+        local hybrid_notif_id = hybrid_notif_info.id
+        if hybrid_notif_id and notif_element:_notification_by_id(hybrid_notif_id) then
+            local display_name = get_breed_presentation_name(breed_name)
+            local hybrid_notif = notif_element:_notification_by_id(hybrid_notif_id)
+            local hybrid_notif_age = hybrid_notif.time
+            local hybrid_notif_color = settings.color.notif.text_gradient(hybrid_notif_age, get_breed_color(breed_name))
+            local mltpl_text = {}
+            for _, evt in pairs(constants.events) do
+                mltpl_text[evt] = notif_type == "icon"
+                and tostring(hybrid_notif_info["count_"..evt])
+                or "x"..tostring(hybrid_notif_info["count_"..evt])
+                mltpl_text[evt] = TextUtils.apply_color_to_text(mltpl_text[evt], hybrid_notif_color)
+            end
+            --local mltpl_text_death = TextUtils.apply_color_to_text(tostring(hybrid_notif_info["count_death"]), hybrid_notif_color)
+            local hybrid_message_1 = mod:localize("hybrid_message_grouped_1_"..notif_type, display_name)
+            local hybrid_message_2 = mod:localize("hybrid_message_grouped_2_"..notif_type, mltpl_text["spawn"], mltpl_text["death"])
+            local hybrid_texts = { hybrid_message_1, hybrid_message_2 }
+            notif_element:_set_texts(hybrid_notif, hybrid_texts)
+        end
+        -- Spawn/death notifs:
+        for _, event in pairs(constants.events) do
             local this_notif_info = mod.active_notifs[breed_name][event]
             local this_notif_id = this_notif_info.id
             local this_notif_multiplicity = this_notif_info.count
             local this_notif = notif_element:_notification_by_id(this_notif_id)
             if this_notif and this_notif_multiplicity > 1 then
                 -- In this case, the notif's text's color should be updated
-                local this_notif_age = this_notif.time
-                local this_notif_color = mod.color.new_notif_gradient(this_notif_age, get_breed_color(breed_name))
-                --local breed = Breeds[breed_name]
                 local display_name = get_breed_presentation_name(breed_name)
-                local mltpl_text = "- "..TextUtils.apply_color_to_text("x"..tostring(this_notif_multiplicity), this_notif_color)
-                local message = mod:localize(event.."_message", display_name, mltpl_text)
+                local this_notif_age = this_notif.time
+                local this_notif_color = settings.color.notif.text_gradient(this_notif_age, get_breed_color(breed_name))
+                local mltpl_text = notif_type == "icon"
+                and TextUtils.apply_color_to_text("x"..tostring(this_notif_multiplicity), this_notif_color) 
+                or TextUtils.apply_color_to_text("x"..tostring(this_notif_multiplicity), this_notif_color)
+                local message = mod:localize(event.."_message_"..notif_type, display_name, mltpl_text)
                 local texts = { message }
                 notif_element:_set_texts(this_notif, texts)
             end
@@ -490,103 +716,118 @@ local refresh_notif_text_colors = function()
     end
 end
 
--- Removes all mod notifs from the notification feed. Meant to be called at the end of a game, but not yet implemented.
---[[
-local clear_notifs = function()
-    for _, breed_name in pairs(mod.interesting_breed_names.array) do
-        for _, event in pairs(mod.events) do
-            local this_notif_info = mod.active_notifs[breed_name][event]
-            local this_notif_id = this_notif_info.id
-            Managers.event:trigger("event_remove_notification", this_notif_id)
-        end
-    end
-end
---]]
-
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
---              Callbacks & keybind-triggered functions
+--              Callbacks & other triggered functions
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
 mod.on_game_state_changed = function(status, state_name)
     if status == "enter" and state_name == "GameplayStateRun" then
-        mod.tracked_units.init()
+        mod.tracked_units:init()
+    elseif state_name == "StateLoading" and status == "enter" then
+        util.notif_clearing:init()
+    elseif state_name == "StateGameScore" and status == "enter" then
+        util.notif_clearing.scoreboard_loaded = true
+        --mod:echo("scoreboard_loaded set to true")
     end
-    --local message = state_name.." ("..status..")"
-    --mod:echo(message)
-    --[[
-    if status == "exit" and state_name == "GameplayStateRun" then
-        clear_notifs()
-    end
-    --]]
 end
 
 mod.on_setting_changed = function(setting_id)
-    -- Monitor setting changes, and flag changed settings to have the variable used to store them refreshed when they're next needed
+-- Monitor setting changes, and flag changed settings to have the variable used to store them refreshed when they're next needed
     local is_tracking_method_setting = string.match(setting_id, "(.+)_overlay$") or string.match(setting_id, "(.+)_notif$")
     local is_priority_setting = string.match(setting_id, "(.+)_priority$")
     local is_color_setting = string.match(setting_id, "color_(.+)$")
+    local is_notif_setting = string.match(setting_id, "notif_(.+)$") or string.match(setting_id, "sound_(.+)$")
     if is_tracking_method_setting then
-        mod.tracked_units.init()
-        -- NB: mod.tracked_units.init() sets the pos_or_scale flag to true, so no need to do it manually here
-    end
-    if setting_id == "hud_scale" then
+        mod.tracked_units:init()
+        -- NB: mod.tracked_units:init() sets the pos_or_scale flag to true, so no need to do it manually here
+    elseif setting_id == "hud_scale" then
         mod.hud_refresh_flags.pos_or_scale = true
-    end
-    if is_priority_setting then
+    elseif is_priority_setting then
         mod.hud_refresh_flags.color = true
-    end
-    if is_color_setting then
-        mod.color.init()
+    elseif is_color_setting then
         mod.hud_refresh_flags.color = true
-    end
-    if setting_id == "font" then
+    elseif setting_id == "font" then
         mod.hud_refresh_flags.font = true
+    elseif is_notif_setting then
+        mod.hud_refresh_flags.notif = true
     end
 end
 
+
+-------------------------------------------------------
+--      Clearing mod notifs at the end of rounds
+-------------------------------------------------------
+
+mod:hook_safe("CinematicSceneExtension", "setup_from_component", function(self)
+    local name = self._cinematic_name
+    if (name == "outro_win" or name == "outro_fail") then
+        if util.notif_clearing.cutscene_loaded_by_name[name] then
+            util.notif_clearing.cutscene_loaded = true
+            --mod:echo("cutscene_loaded set to true because this cutscene is already loaded: "..name)
+        else
+            util.notif_clearing.cutscene_loaded_by_name[name] = true
+            --mod:echo("cutscene_loaded_by_name set to true for name: "..name)
+        end
+        --[[
+        if util.notif_clearing.val[name] then
+            mod.clear_notifs()
+        else
+            util.notif_clearing.val[name] = true
+        end
+        --]]
+    end
+end)
+
+mod:command("clear_notifs", "Clears all the active notifications.", function()
+    Managers.event:trigger("event_clear_notifications")
+end)
+
 --[[
-function mod.reset_unit_counter()
-    mod.tracked_units.init()
-    mod.hud_refresh_flags.color = true
-    local message = "Tracked breeds reset - HUD colors flagged for redefinition"
-    Managers.event:trigger("event_add_notification_message", "default", message)
-end
+mod:command("st_clear_notifs_on", "Toggle on the constant clearing of mod notifs (DEBUGGING)", function()
+    mod.constant_notif_clear = true
+end)
+
+mod:command("st_clear_notifs_off", "Toggle off the constant clearing of mod notifs (DEBUGGING)", function()
+    mod.constant_notif_clear = false
+end)
+
+mod:command("st_clear_notifs_check", "Check the value of the flag that can force constant notif clearing (DEBUGGING)", function()
+    mod:echo("Constant notif clearing flag: "..tostring(mod.constant_notif_clear))
+end)
 --]]
 
-
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
---                      Tracking enemy deaths
+--                      Monitoring enemy deaths
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
 --[[
-Two methods are used conjointly to track enemy deaths:
+Two methods are used conjointly to monitor enemy deaths:
 
-[1] Hook the function that sets units dead. This allows us to catch and record unit deaths instantly, but only when a death actually calls this function, which strangely doesn't seem to happen for all enemy deaths.
+[1] Hook the function that sets units dead. This allows us to catch and record unit deaths instantly, but only when a death actually calls this function, which (strangely) doesn't seem to happen for all enemy deaths.
 
 [2] Check all currently tracked units to check if they are dead. This allows us to catch *all* enemy deaths, but enemies are sometimes set to dead a few seconds after they die from a gameplay point of view.
 
 Method [2] is more reliable than method [1] when it comes to actually catching enemy deaths, but less reliable when it comes to being fast at recording deaths - which is why we use the two conjointly.
 --]]
 
--- Tracking method [1]
+-- Monitoring method [1]
 mod:hook_safe(CLASS.MinionDeathManager, "set_dead", function (self, unit, attack_direction, hit_zone_name, damage_profile_name, do_ragdoll_push, herding_template_name)
     local breed_name = mod.tracked_units.record_unit_death(unit)
-    if breed_name and mod.tracked_units.notif_breeds_inverted_table[breed_name] then
+    if breed_name and mod.tracked_units.notif_breeds.inv_table[breed_name] then
         display_notification(breed_name, "death")
     end
 end)
 
--- Tracking method [2]
+-- Monitoring method [2]
 mod.update = function(dt)
     local nb_of_deaths_per_breed = mod.tracked_units.clean_dead_units()
     for breed_name, nb_of_deaths in pairs(nb_of_deaths_per_breed) do
-        -- NB: This works well with how we handle the grouping of "duplicate" notifs
-        if mod.tracked_units.notif_breeds_inverted_table[breed_name] then
+        if mod.tracked_units.notif_breeds.inv_table[breed_name] then
             for _ = 1, nb_of_deaths do
                 display_notification(breed_name, "death")
             end
@@ -594,13 +835,23 @@ mod.update = function(dt)
     end
     -- Update multiplicit notifs color
     refresh_notif_text_colors()
+    -- Refresh notif settings if needed
+    if mod.hud_refresh_flags.notif then
+        settings.notif:init()
+        mod.hud_refresh_flags.notif = false
+    end
+    -- Clear the notifs if between the start of an end-game cutscene and the scoreboard
+    if (util.notif_clearing.cutscene_loaded
+    and not util.notif_clearing.scoreboard_loaded)
+    or mod.constant_notif_clear then
+        util.notif_clearing.clear()
+    end
 end
 
 
-
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
---                      Tracking enemy spawns
+--                      Monitoring enemy spawns
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
@@ -610,7 +861,7 @@ mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit
     if GameSession.has_game_object_field(game_session, game_object_id, "breed_id") then
         local breed_id = GameSession.game_object_field(game_session, game_object_id, "breed_id")
         local raw_breed_name = NetworkLookup.breed_names[breed_id]
-        local breed_name = mod.clean_breed_name(raw_breed_name)
+        local breed_name = util.clean_breed_name(raw_breed_name)
         local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
         if spawn_record_result.notif then
            display_notification(breed_name, "spawn")
