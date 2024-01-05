@@ -374,16 +374,16 @@ mod.tracked_units.refresh_unit_count = function(breed_name)
     if mod.tracked_units.overlay_breeds.only_if_active[breed_name] then
         local one_count_was_zero = old_unit_count * new_unit_count == 0
         local one_count_was_non_zero = old_unit_count + new_unit_count ~= 0
-        local up_to_mult_of_ten = (new_unit_count%10 == 0 and old_unit_count%10 == 9)
-        local down_from_mult_of_ten = (new_unit_count%10 == 9 and old_unit_count%10 == 0)
         if one_count_was_zero and one_count_was_non_zero then
         -- If the relevant option is toggled on, check whether the unit count changed from zero to non-zero or vice-versa
             mod.hud_refresh_flags.pos_or_scale = true
         end
-        if up_to_mult_of_ten or down_from_mult_of_ten then
+    end
+    local up_to_mult_of_ten = (new_unit_count%10 == 0 and old_unit_count%10 == 9)
+    local down_from_mult_of_ten = (new_unit_count%10 == 9 and old_unit_count%10 == 0)
+    if up_to_mult_of_ten or down_from_mult_of_ten then
         -- If a unit count goes from a multiple of 10 to one below it (or vice-versa), flag the hud pos/scale to be redefined to account for the fact that, for instance, "10" is larger visually than "9", and as such, the size of the background might need to be resized to the right of the numbers
-            mod.hud_refresh_flags.pos_or_scale = true
-        end
+        mod.hud_refresh_flags.pos_or_scale = true
     end
 end
 
