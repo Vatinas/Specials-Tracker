@@ -59,6 +59,7 @@ mod.utilities = {
     sort_breed_names = nil,
     clean_breed_name = nil,
     is_monster = nil,
+    --[[
     notif_clearing = {
         clear = nil,
         cutscene_loaded = false,
@@ -66,6 +67,7 @@ mod.utilities = {
             outro_win = false,
             outro_fail = false,
         },
+        is_loading = false,
         scoreboard_loaded = false,
         init = function(self)
             self.cutscene_loaded = false
@@ -73,10 +75,12 @@ mod.utilities = {
                 outro_win = false,
                 outro_fail = false,
             }
+            self.in_loading = true
             self.scoreboard_loaded = false
             --mod:echo("cutscene_loaded and scoreboard_loaded set to false")
         end,
     }
+    --]]
 }
 local util = mod.utilities
 
