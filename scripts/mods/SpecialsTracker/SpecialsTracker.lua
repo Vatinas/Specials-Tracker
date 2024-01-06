@@ -285,6 +285,10 @@ mod.active_notifs
             Whether a game win/fail cutscene is currently playing, or has been played recently. (Reset to false on entering loading screens)
         mod.active_notifs.flags.custcene_loaded_by_name["outro_win"/"outro_fail"]
             Whether the index outro has been loaded when entering a game, and is ready to played if necessary
+        mod.active_notifs.flags.clear_needed
+            Stores the value of (-.in_loading or -.cutscene_loaded).
+        mod.active_notifs.flags:set(flag_name, value)
+            Sets -[flag_name] to value, and updates -.clear_needed accordingly.
         mod.active_notifs.flags:init()
             Initialises all flags. Called when entering a loading screen.
 --]]
@@ -302,6 +306,11 @@ mod.active_notifs = {
             outro_fail = false,
         },
         --scoreboard_loaded = false,
+        clear_needed = false,
+        set = function(self, flag_name, value)
+            self[flag_name] = value
+            self.clear_needed = self.in_loading or self.cutscene_loaded
+        end,
         init = function(self)
         -- This is called upon entering loading screens
             self.in_loading = true
@@ -310,6 +319,7 @@ mod.active_notifs = {
                 outro_win = false,
                 outro_fail = false,
             }
+            self.clear_needed = true
             --self.scoreboard_loaded = false
         end,
     },
@@ -656,7 +666,7 @@ local display_notification = function(breed_name, base_event)
     -- If there is neither a hybrid nor an other_base_event notif active, create a new one for base_event.
 
     -- NB: This function should only be called on valid breeds
-    if mod.active_notifs.flags.cutscene_loaded or mod.active_notifs.flags.in_loading then
+    if mod.active_notifs.flags.clear_needed then
         return
     end
     local constant_elements = Managers.ui and Managers.ui:ui_constant_elements()
@@ -734,7 +744,7 @@ mod.active_notifs.update = function(self)
 -- 2. Gives notifications with multiplicity the right text.
     if self.is_cleared then
         return
-    elseif self.flags.cutscene_loaded or self.flags.in_loading then
+    elseif self.flags.clear_needed then
         self:clear()
         return
     end
@@ -797,11 +807,10 @@ mod.on_game_state_changed = function(status, state_name)
         mod.tracked_units:init()
     elseif state_name == "StateLoading" and status == "enter" then
         mod.active_notifs.flags:init()
-    elseif (state_name == "StateExitToMainMenu" or state_name == "StateMainMenu")
-    and status == "enter" then
-        mod.active_notifs.flags.in_loading = true
-    elseif state_name == "StateLoading" and status == "exit" then
-        mod.active_notifs.flags.in_loading = false
+    elseif state_name == "StateExitToMainMenu"
+    or state_name == "StateMainMenu"
+    or state_name == "StateLoading" then
+        mod.active_notifs.flags:set("in_loading", state_name == "enter")
     --elseif state_name == "StateGameScore" and status == "enter" then
     --    util.notif_clearing.scoreboard_loaded = true
     end
@@ -839,11 +848,9 @@ mod:hook_safe("CinematicSceneExtension", "setup_from_component", function(self)
     local name = self._cinematic_name
     if (name == "outro_win" or name == "outro_fail") then
         if mod.active_notifs.flags.cutscene_loaded_by_name[name] then
-            mod.active_notifs.flags.cutscene_loaded = true
-            --mod:echo("cutscene_loaded set to true because this cutscene is already loaded: "..name)
+            mod.active_notifs.flags:set("cutscene_loaded", true)
         else
             mod.active_notifs.flags.cutscene_loaded_by_name[name] = true
-            --mod:echo("cutscene_loaded_by_name set to true for name: "..name)
         end
     end
 end)
