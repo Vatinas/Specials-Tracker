@@ -122,19 +122,6 @@ util.sort_breed_names = function(a,b)
     end
 end
 
---[[
-util.notif_clearing.clear = function()
--- Removes all mod notifs from the notification feed
-    for _, breed_name in pairs(constants.trackable_breeds.array) do
-        for _, event in pairs(constants.events_extended) do
-            Managers.event:trigger("event_remove_notification", mod.active_notifs[breed_name][event].id)
-            mod.active_notifs[breed_name][event].id = nil
-        end
-    end
-    mod.active_notifs.is_cleared = true
-end
---]]
-
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -279,14 +266,14 @@ mod.active_notifs
         Is set to true whenever notifs are cleared by the previous method, and to false whenever a notif is added to the feed. Used to make -:update() faster in cutscenes/loading screens, while still allowing it to clear notifs in such situations.
     mod.active_notifs.flags
         Contains various flags used by other fields.
-        mod.active_notifs.flags.in_loading
-            Whether the game is in a loading screen.
+        mod.active_notifs.flags.game_state_clear
+            Whether the game is in a state where notifs should be cleared (except for end-of-game cutscenes, which are handled separately)
         mod.active_notifs.flags.cutscene_loaded
             Whether a game win/fail cutscene is currently playing, or has been played recently. (Reset to false on entering loading screens)
         mod.active_notifs.flags.custcene_loaded_by_name["outro_win"/"outro_fail"]
             Whether the index outro has been loaded when entering a game, and is ready to played if necessary
         mod.active_notifs.flags.clear_needed
-            Stores the value of (-.in_loading or -.cutscene_loaded).
+            Stores the value of (-.game_state_clear or -.cutscene_loaded).
         mod.active_notifs.flags:set(flag_name, value)
             Sets -[flag_name] to value, and updates -.clear_needed accordingly.
         mod.active_notifs.flags:init()
@@ -299,28 +286,26 @@ mod.active_notifs = {
     clear = nil,
     is_cleared = true,
     flags = {
-        in_loading = false,
+        game_state_clear = false,
         cutscene_loaded = false,
         cutscene_loaded_by_name = {
             outro_win = false,
             outro_fail = false,
         },
-        --scoreboard_loaded = false,
         clear_needed = false,
         set = function(self, flag_name, value)
             self[flag_name] = value
-            self.clear_needed = self.in_loading or self.cutscene_loaded
+            self.clear_needed = self.game_state_clear or self.cutscene_loaded
         end,
         init = function(self)
         -- This is called upon entering loading screens
-            self.in_loading = true
+            self.game_state_clear = true
             self.cutscene_loaded = false
             self.cutscene_loaded_by_name = {
                 outro_win = false,
                 outro_fail = false,
             }
             self.clear_needed = true
-            --self.scoreboard_loaded = false
         end,
     },
 }
@@ -810,11 +795,8 @@ mod.on_game_state_changed = function(status, state_name)
     elseif state_name == "StateExitToMainMenu"
     or state_name == "StateMainMenu"
     or state_name == "StateLoading" then
-        mod.active_notifs.flags:set("in_loading", state_name == "enter")
-    --elseif state_name == "StateGameScore" and status == "enter" then
-    --    util.notif_clearing.scoreboard_loaded = true
+        mod.active_notifs.flags:set("game_state_clear", status == "enter")
     end
-    --mod:echo("State: "..state_name.." ("..status..")")
 end
 
 mod.on_setting_changed = function(setting_id)
@@ -859,6 +841,7 @@ mod:command("clear_notifs", "Clears all the active notifications.", function()
     Managers.event:trigger("event_clear_notifications")
 end)
 
+--[[
 mod:command("st_check_flags", "Check the flags of actif_notifs (DEBUGGING)", function()
     local message = ""
     for name, value in pairs(mod.active_notifs.flags) do
@@ -867,20 +850,8 @@ mod:command("st_check_flags", "Check the flags of actif_notifs (DEBUGGING)", fun
     message = message.."is_cleared - "..tostring(mod.active_notifs.is_cleared)
     mod:echo(message)
 end)
-
---[[
-mod:command("st_clear_notifs_on", "Toggle on the constant clearing of mod notifs (DEBUGGING)", function()
-    mod.constant_notif_clear = true
-end)
-
-mod:command("st_clear_notifs_off", "Toggle off the constant clearing of mod notifs (DEBUGGING)", function()
-    mod.constant_notif_clear = false
-end)
-
-mod:command("st_clear_notifs_check", "Check the value of the flag that can force constant notif clearing (DEBUGGING)", function()
-    mod:echo("Constant notif clearing flag: "..tostring(mod.constant_notif_clear))
-end)
 --]]
+
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -916,22 +887,13 @@ mod.update = function(dt)
             end
         end
     end
-    -- Update multiplicit notifs color
+    -- Update notif text & text color, and clear all mod notifs if needed
     mod.active_notifs:update()
     -- Refresh notif settings if needed
     if mod.hud_refresh_flags.notif then
         settings.notif:init()
         mod.hud_refresh_flags.notif = false
     end
-    -- Clear the notifs if between the start of an end-game cutscene and the scoreboard
-    -- NB: This is now done in the notif refresh function
-    --[[
-    if (util.notif_clearing.cutscene_loaded
-    and not util.notif_clearing.scoreboard_loaded)
-    or mod.constant_notif_clear then
-        util.notif_clearing.clear()
-    end
-    --]]
 end
 
 
