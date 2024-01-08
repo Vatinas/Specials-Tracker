@@ -61,7 +61,7 @@ mod.hud_refresh_flags = {
     pos_or_scale = true,
     color = true,
     font = true,
-    notif_settings = true,
+    notif = true,
     name_style = true,
 }
 
@@ -252,31 +252,63 @@ mod.package = {
     name = "packages/ui/views/inventory_background_view/inventory_background_view",
     reference_name = "SpecialsTracker",
     flags = {
-        loading_started = false,
         loaded = false,
+        loading_started = false,
+        ---[[
+        in_round = false,
+        check_if_in_round = function()
+            local game_state_manager = Managers.state.game_mode
+            if game_state_manager and game_state_manager:game_mode_name() ~= "hub" then
+                return true
+            else
+                return false
+            end
+        end,
+        --]]
+        --[[
+        loading_needed = {
+            value = false,
+            refresh = function(self)
+                self.value = not mod.package.flags.loading_started
+                and mod.package.flags.in_round
+                and mod:get("notif_display_type") == "icon"
+            end
+        },
+        --]]
+        set = function(self, flag_name, value)
+            self[flag_name] = value
+            --self.loading_needed:refresh()
+        end,
     },
     id = nil,
     load = function(self)
         if not Managers.package:has_loaded_id(self.id) then
+            mod:echo("Package loading started...")
             self.id = Managers.package:load(
                 self.name,
                 self.reference_name,
                 function(id)
                     self.id = id
-                    self.loaded = true
+                    self.flags:set("loaded", true)
+                    mod:echo("Package loading complete")
                 end
             )
-            self.flags.loading_started = true
+            self.flags:set("loading_started", true)
         else
-            self.loaded = true
+            self.flags:set("loaded", true)
         end
     end,
     unload = function(self)
-        if Managers.package:has_loaded_id(self.id) then
-            self.flags.loading_started = false
-            self.flags.loaded = false
-            --Managers.package:release(self.id)
-            Managers.package:unload(self.name, self.reference_name)
+        if ResourcePackage
+        and ResourcePackage.unload then
+            mod.active_notifs:clear()
+            self.flags:set("loading_started", false)
+            self.flags:set("loaded", false)
+            if Managers.package:has_loaded_id(self.id) then
+                mod:echo("Starting package unloading...")
+                ResourcePackage.unload(Application.resource_package(self.name))
+                mod:echo("Package unloading started.")
+            end
             self.id = nil
         end
     end
@@ -634,7 +666,8 @@ mod:hook("ConstantElementNotificationFeed", "_generate_notification_data", funct
             }
             notif_data.enter_sound_event = settings.notif.sound["enter_"..data.triggering_event] --mod:get("sound_"..data.triggering_event)
         end
-        if settings.notif.display_type == "icon" then
+        if settings.notif.display_type == "icon"
+        and Managers.package:has_loaded_id(mod.package.id) then
             notif_data.icon = event_icon(message_type)
             notif_data.scale_icon = true
             notif_data.icon_size = "medium"
@@ -833,10 +866,11 @@ end
 ---------------------------------------------------------------------------
 
 mod.on_game_state_changed = function(status, state_name)
-    if status == "enter" and state_name == "GameplayStateRun" then
+    if state_name == "GameplayStateRun" and status == "enter" then
         mod.tracked_units:init()
     elseif state_name == "StateLoading" and status == "enter" then
         mod.active_notifs.flags:init()
+        --mod.package:unload()
     elseif state_name == "StateExitToMainMenu"
     or state_name == "StateMainMenu"
     or state_name == "StateLoading" then
@@ -940,6 +974,19 @@ mod.update = function(dt)
     if mod.hud_refresh_flags.notif then
         settings.notif:init()
         mod.hud_refresh_flags.notif = false
+    end
+    -- Start loading the package if needed
+    if not mod.package.flags.loading_started
+    and mod.package.flags.check_if_in_round()
+    and settings.notif.display_type == "icon" then
+        mod.package:load()
+    end
+    -- Start unloading the package if needed
+    if mod.package.flags.loaded
+    and not mod.package.flags.check_if_in_round() then
+        --mod.active_notifs:clear()
+        mod:echo("Trying to unload package...")
+        mod.package:unload()
     end
 end
 
