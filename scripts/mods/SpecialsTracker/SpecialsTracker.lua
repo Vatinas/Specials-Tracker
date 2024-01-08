@@ -62,6 +62,7 @@ mod.hud_refresh_flags = {
     color = true,
     font = true,
     notif_settings = true,
+    name_style = true,
 }
 
 
@@ -238,6 +239,50 @@ end
 
 settings.color:init()
 
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--                         Package handling
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- The notif icons are from a package, which we need to load manually to ensure it is available.
+
+mod.package = {
+    name = "packages/ui/views/inventory_background_view/inventory_background_view",
+    reference_name = "SpecialsTracker",
+    flags = {
+        loading_started = false,
+        loaded = false,
+    },
+    id = nil,
+    load = function(self)
+        if not Managers.package:has_loaded_id(self.id) then
+            self.id = Managers.package:load(
+                self.name,
+                self.reference_name,
+                function(id)
+                    self.id = id
+                    self.loaded = true
+                end
+            )
+            self.flags.loading_started = true
+        else
+            self.loaded = true
+        end
+    end,
+    unload = function(self)
+        if Managers.package:has_loaded_id(self.id) then
+            self.flags.loading_started = false
+            self.flags.loaded = false
+            --Managers.package:release(self.id)
+            Managers.package:unload(self.name, self.reference_name)
+            self.id = nil
+        end
+    end
+}
+
+-- Managers.package:load(package_name, "SpecialsTracker", callback)
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -818,6 +863,8 @@ mod.on_setting_changed = function(setting_id)
         mod.hud_refresh_flags.font = true
     elseif is_notif_setting then
         mod.hud_refresh_flags.notif = true
+    elseif setting_id == "overlay_name_style" then
+        mod.hud_refresh_flags.name_style = true
     end
 end
 

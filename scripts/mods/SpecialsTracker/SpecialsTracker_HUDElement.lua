@@ -132,19 +132,20 @@ mod.hud_dimensions.init = function(self)
 	local scale = mod:get("hud_scale")
 	settings.hud_scale = scale
 	local max_text_width = 0
-	local max_text_height = 0
-	for _, name in pairs(constants.trackable_breeds.overlay_names) do
-		local this_width, this_height = mod.get_text_size(name, scale)
-		max_text_width = math.max(max_text_width, this_width)
-		max_text_height = math.max(max_text_height, this_height)
+	for cln_brd_name, overlay_name in pairs(constants.trackable_breeds.overlay_names[mod:get("overlay_name_style")]) do
+		if show_breed(cln_brd_name) then
+			local this_width, this_height = mod.get_text_size(overlay_name, scale)
+			max_text_width = math.max(max_text_width, this_width)
+		end
 	end
 	local number_width, number_height = max_number_size(scale)
-	local height = math.max(max_text_height, number_height)
+	local height = number_height
 
 	self.text_pass_size = {max_text_width, height}
 	self.number_pass_size = {number_width, height}
 
-	self.x_padding = constants.hud.x_padding_ratio * (max_text_width + number_width)
+	self.x_padding = constants.hud.x_padding_ratio * max_text_width + constants.hud.x_padding_flat * scale
+	--self.x_padding = constants.hud.base_x_padding * scale
 	self.number_pass_x_offset = max_text_width + self.x_padding
 
 	local y_padding = constants.hud.y_padding_ratio * height
@@ -197,7 +198,7 @@ local breed_widget = function(breed_name)
 			value_id = breed_name.."_text",
 			style_id = breed_name.."_text",
 			pass_type = "text",
-			value = mod:localize(breed_name.."_overlay_name") or "ERR",
+			value = "-", --constants.trackable_breeds.overlay_names[settings.overlay_name_style][breed_name],
 			style = {
 				text_color = constants.color.white,
 				font_size = constants.hud.base_font_size,
@@ -224,7 +225,7 @@ local breed_widget = function(breed_name)
 			value_id = breed_name.."_value",
 			style_id = breed_name.."_value",
 			pass_type = "text",
-			value = "--",
+			value = "-",
 			style = {
 				text_color = constants.color.white,
 				font_size = constants.hud.base_font_size,
@@ -540,6 +541,16 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 		end
 		mod.hud_refresh_flags.font = false
 		-- If we refresh the font, we need to refresh the HUD positions to adapt to the new font's dimensions
+		mod.hud_refresh_flags.pos_or_scale = true
+	end
+	-->> Overlay name style
+	if mod.hud_refresh_flags.name_style then
+		settings.overlay_name_style:init()
+		for _, breed_name in pairs(constants.trackable_breeds.array) do
+			self._widgets_by_name["widget_"..breed_name].content[breed_name.."_text"] = constants.trackable_breeds.overlay_names[settings.overlay_name_style.current][breed_name]
+		end
+		mod.hud_refresh_flags.name_style = false
+		-- If we refresh the name style, we need to refresh the HUD positions to adapt to the new names' dimensions
 		mod.hud_refresh_flags.pos_or_scale = true
 	end
 	-->> Position & scale

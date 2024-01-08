@@ -115,6 +115,9 @@ loc_raw.setting = {
     hud_color_lerp_ratio = {
         en = "Overlay names color intensity",
     },
+    overlay_name_style = {
+        en = "Overlay name style",
+    },
 }
 
 for _, i in pairs(priority_lvls) do
@@ -251,6 +254,15 @@ loc_raw.option = {
     off = {
         en = "Never",
     },
+    short = {
+        en = "Short (e.g. SNP/TRP)",
+    },
+    long = {
+        en = "Long (e.g. SNIP/TRAP)",
+    },
+    full = {
+        en = "Full (e.g. Sniper/Trapper)",
+    },
 }
 
 
@@ -334,12 +346,138 @@ for breed_name, breed in pairs(Breeds) do
             en = Localize(breed.display_name),
         }
         -- Breed names in overlay
-        loc_raw.mod_ui[clean_name.."_overlay_name"] = {
+        loc_raw.mod_ui[clean_name.."_overlay_name_short"] = {
+            en = "[X]",
+        }
+        loc_raw.mod_ui[clean_name.."_overlay_name_long"] = {
+            en = "[X]",
+        }
+        loc_raw.mod_ui[clean_name.."_overlay_name_full"] = {
             en = "[X]",
         }
     end
 end
 
+-------------------------------------------------------
+--                  Overlay names
+-------------------------------------------------------
+
+---------------------
+-- Defining name sets
+
+local overlay_name_sets = { }
+
+overlay_name_sets.short = {
+    flamer = {
+        en = "FLM",
+    },
+    cultist_mutant = {
+        en = "MTNT",
+    },
+    chaos_hound = {
+        en = "HND",
+    },
+    renegade_grenadier = {
+        en = "BMB",
+    },
+    renegade_netgunner = {
+        en = "TRP",
+    },
+    renegade_sniper = {
+        en = "SNP",
+    },
+    chaos_poxwalker_bomber = {
+        en = "BRST",
+    },
+    chaos_beast_of_nurgle = {
+        en = "BST",
+    },
+    chaos_plague_ogryn = {
+        en = "PLG",
+    },
+    chaos_spawn = {
+        en = "SPWN",
+    },
+}
+
+overlay_name_sets.long = {
+    flamer = {
+        en = "FLAM",
+    },
+    cultist_mutant = {
+        en = "MUTNT",
+    },
+    chaos_hound = {
+        en = "HOUND",
+    },
+    renegade_grenadier = {
+        en = "BOMB",
+    },
+    renegade_netgunner = {
+        en = "TRAP",
+    },
+    renegade_sniper = {
+        en = "SNIP",
+    },
+    chaos_poxwalker_bomber = {
+        en = "BURST",
+    },
+    chaos_beast_of_nurgle = {
+        en = "BEAST",
+    },
+    chaos_plague_ogryn = {
+        en = "OGRYN",
+    },
+    chaos_spawn = {
+        en = "SPAWN",
+    },
+}
+
+overlay_name_sets.full = {
+    flamer = {
+        en = "Flamer",
+    },
+    cultist_mutant = {
+        en = "Mutant",
+    },
+    chaos_hound = {
+        en = "Hound",
+    },
+    renegade_grenadier = {
+        en = "Bomber",
+    },
+    renegade_netgunner = {
+        en = "Trapper",
+    },
+    renegade_sniper = {
+        en = "Sniper",
+    },
+    chaos_poxwalker_bomber = {
+        en = "Burster",
+    },
+    chaos_beast_of_nurgle = {
+        en = "Beast",
+    },
+    chaos_plague_ogryn = {
+        en = "Ogryn",
+    },
+    chaos_spawn = {
+        en = "Spawn",
+    },
+}
+
+----------------------------------
+-- Adding overlay names to the loc
+
+for style, name_set in pairs(overlay_name_sets) do
+    for breed_name, loc in pairs(name_set) do
+        loc_raw.mod_ui[breed_name.."_overlay_name_"..style] = loc
+    end
+end
+
+-------------------------------------------------------
+--              Other breed name locs
+-------------------------------------------------------
 
 ----------
 -- Flamers
@@ -349,9 +487,6 @@ loc_raw.subcategory["flamer"] = {
 }
 loc_raw.mod_ui["flamer_notif_name"] = {
     en = "Flamer"
-}
-loc_raw.mod_ui["flamer_overlay_name"] = {
-    en = "FLM"
 }
 
 ---------
@@ -363,9 +498,6 @@ loc_raw.subcategory["cultist_mutant"] = {
 loc_raw.mod_ui["cultist_mutant_notif_name"] = {
     en = "Mutant"
 }
-loc_raw.mod_ui["cultist_mutant_overlay_name"] = {
-    en = "MTNT"
-}
 
 --------
 -- Hound
@@ -375,9 +507,6 @@ loc_raw.subcategory["chaos_hound"] = {
 }
 loc_raw.mod_ui["chaos_hound_notif_name"] = {
     en = "Hound"
-}
-loc_raw.mod_ui["chaos_hound_overlay_name"] = {
-    en = "HND"
 }
 
 ---------
@@ -389,9 +518,6 @@ loc_raw.subcategory["renegade_grenadier"] = {
 loc_raw.mod_ui["renegade_grenadier_notif_name"] = {
     en = "Bomber"
 }
-loc_raw.mod_ui["renegade_grenadier_overlay_name"] = {
-    en = "BMB"
-}
 
 ----------
 -- Trapper
@@ -401,9 +527,6 @@ loc_raw.subcategory["renegade_netgunner"] = {
 }
 loc_raw.mod_ui["renegade_netgunner_notif_name"] = {
     en = "Trapper"
-}
-loc_raw.mod_ui["renegade_netgunner_overlay_name"] = {
-    en = "TRP"
 }
 
 ---------
@@ -415,9 +538,6 @@ loc_raw.subcategory["renegade_sniper"] = {
 loc_raw.mod_ui["renegade_sniper_notif_name"] = {
     en = "Sniper"
 }
-loc_raw.mod_ui["renegade_sniper_overlay_name"] = {
-    en = "SNP"
-}
 
 -------------
 -- Poxburster
@@ -427,9 +547,6 @@ loc_raw.subcategory["chaos_poxwalker_bomber"] = {
 }
 loc_raw.mod_ui["chaos_poxwalker_bomber_notif_name"] = {
     en = "Poxburster"
-}
-loc_raw.mod_ui["chaos_poxwalker_bomber_overlay_name"] = {
-    en = "BRST"
 }
 
 -----------
@@ -446,26 +563,17 @@ loc_raw.subcategory["monsters"] = {
 loc_raw.mod_ui["chaos_beast_of_nurgle_notif_name"] = {
     en = "BEAST OF NURGLE"
 }
-loc_raw.mod_ui["chaos_beast_of_nurgle_overlay_name"] = {
-    en = "BST"
-}
 
 -- Plague Ogryn - Other locs
 
 loc_raw.mod_ui["chaos_plague_ogryn_notif_name"] = {
     en = "PLAGUE OGRYN"
 }
-loc_raw.mod_ui["chaos_plague_ogryn_overlay_name"] = {
-    en = "PLG"
-}
 
 -- Chaos Spawn - Other locs
 
 loc_raw.mod_ui["chaos_spawn_notif_name"] = {
     en = "CHAOS SPAWN"
-}
-loc_raw.mod_ui["chaos_spawn_overlay_name"] = {
-    en = "SPWN"
 }
 
 
