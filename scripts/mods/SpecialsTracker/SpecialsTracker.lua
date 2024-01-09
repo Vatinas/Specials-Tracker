@@ -301,8 +301,10 @@ mod.package = {
     unload = function(self)
         if not Managers then
             mod:echo("Managers is nil")
+        elseif not Managers.package then
+            mod:echo("Managers.package is nil")
         elseif not Managers.package.release then
-            mod:echo("Managers.release is nil")
+            mod:echo("Managers.package.release is nil")
         elseif not Managers.package:has_loaded_id(self.id) then
             mod:echo("Managers.package:has_loaded_id(self.id) is false")
         end
