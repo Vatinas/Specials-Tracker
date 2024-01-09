@@ -185,7 +185,10 @@ loc_raw.tooltip = {
     },
     tooltip_monsters_pos = {
         en = "\nWhether the monsters will be listed at the top or the bottom of the list in the overlay\n\nIt is recommended to list them at the bottom, so the rest of the units don't get pushed up or down when a monster spawns or die",
-    }
+    },
+    tooltip_overlay_name_style = {
+        en = "\nShort: SNP/FLM/TRP\nLong: SNIP/TRAP/FLAM\nFull: Sniper/Flamer/Trapper"
+    },
 }
 
 
@@ -255,13 +258,13 @@ loc_raw.option = {
         en = "Never",
     },
     short = {
-        en = "Short (e.g. SNP/TRP)",
+        en = "Short",
     },
     long = {
-        en = "Long (e.g. SNIP/TRAP)",
+        en = "Long",
     },
     full = {
-        en = "Full (e.g. Sniper/Trapper)",
+        en = "Full",
     },
 }
 

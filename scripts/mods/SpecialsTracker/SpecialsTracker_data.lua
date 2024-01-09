@@ -562,6 +562,7 @@ local widgets = {
     },
     {
         setting_id = "overlay_name_style",
+        tooltip = "tooltip_overlay_name_style",
         type = "dropdown",
         default_value = default_overlay_name_style,
         options = overlay_name_style,

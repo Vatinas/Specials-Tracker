@@ -254,8 +254,6 @@ mod.package = {
     flags = {
         loaded = false,
         loading_started = false,
-        ---[[
-        in_round = false,
         check_if_in_round = function()
             local game_state_manager = Managers.state.game_mode
             if game_state_manager and game_state_manager:game_mode_name() ~= "hub" then
@@ -264,68 +262,38 @@ mod.package = {
                 return false
             end
         end,
-        --]]
-        --[[
-        loading_needed = {
-            value = false,
-            refresh = function(self)
-                self.value = not mod.package.flags.loading_started
-                and mod.package.flags.in_round
-                and mod:get("notif_display_type") == "icon"
-            end
-        },
-        --]]
-        set = function(self, flag_name, value)
-            self[flag_name] = value
-            --self.loading_needed:refresh()
-        end,
     },
     id = nil,
     load = function(self)
         if not Managers.package:has_loaded_id(self.id) then
-            mod:echo("Package loading started...")
             self.id = Managers.package:load(
                 self.name,
                 self.reference_name,
                 function(id)
                     self.id = id
-                    self.flags:set("loaded", true)
-                    mod:echo("Package loading complete")
+                    self.flags.loaded = true
                 end
             )
-            self.flags:set("loading_started", true)
+            self.flags.loading_started = true
         else
-            self.flags:set("loaded", true)
+            self.flags.loaded = true
         end
     end,
     unload = function(self)
-        if not Managers then
-            mod:echo("Managers is nil")
-        elseif not Managers.package then
-            mod:echo("Managers.package is nil")
-        elseif not Managers.package.release then
-            mod:echo("Managers.package.release is nil")
-        elseif not Managers.package:has_loaded_id(self.id) then
-            mod:echo("Managers.package:has_loaded_id(self.id) is false")
-        end
         if Managers
         and Managers.package
         and Managers.package.release then
             mod.active_notifs:clear()
-            self.flags:set("loading_started", false)
-            self.flags:set("loaded", false)
+            self.flags.loading_started = false
+            self.flags.loaded = false
             if Managers.package:has_loaded_id(self.id) then
-                mod:echo("Starting package release...")
-                --ResourcePackage.unload(Application.resource_package(self.name))
                 Managers.package:release(self.id)
-                mod:echo("Package release started.")
             end
             self.id = nil
         end
     end
 }
 
--- Managers.package:load(package_name, "SpecialsTracker", callback)
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -933,17 +901,6 @@ mod:command("clear_notifs", "Clears all the active notifications.", function()
     Managers.event:trigger("event_clear_notifications")
 end)
 
---[[
-mod:command("st_check_flags", "Check the flags of actif_notifs (DEBUGGING)", function()
-    local message = ""
-    for name, value in pairs(mod.active_notifs.flags) do
-        message = message..name.." - "..tostring(value).."\n"
-    end
-    message = message.."is_cleared - "..tostring(mod.active_notifs.is_cleared)
-    mod:echo(message)
-end)
---]]
-
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -995,8 +952,6 @@ mod.update = function(dt)
     -- Start unloading the package if needed
     if mod.package.flags.loaded
     and not mod.package.flags.check_if_in_round() then
-        --mod.active_notifs:clear()
-        mod:echo("Trying to unload package...")
         mod.package:unload()
     end
 end
