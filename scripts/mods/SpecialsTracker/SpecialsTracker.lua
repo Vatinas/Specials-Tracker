@@ -299,15 +299,24 @@ mod.package = {
         end
     end,
     unload = function(self)
-        if ResourcePackage
-        and ResourcePackage.unload then
+        if not Managers then
+            mod:echo("Managers is nil")
+        elseif not Managers.package.release then
+            mod:echo("Managers.release is nil")
+        elseif not Managers.package:has_loaded_id(self.id) then
+            mod:echo("Managers.package:has_loaded_id(self.id) is false")
+        end
+        if Managers
+        and Managers.package
+        and Managers.package.release then
             mod.active_notifs:clear()
             self.flags:set("loading_started", false)
             self.flags:set("loaded", false)
             if Managers.package:has_loaded_id(self.id) then
-                mod:echo("Starting package unloading...")
-                ResourcePackage.unload(Application.resource_package(self.name))
-                mod:echo("Package unloading started.")
+                mod:echo("Starting package release...")
+                --ResourcePackage.unload(Application.resource_package(self.name))
+                Managers.package:release(self.id)
+                mod:echo("Package release started.")
             end
             self.id = nil
         end
