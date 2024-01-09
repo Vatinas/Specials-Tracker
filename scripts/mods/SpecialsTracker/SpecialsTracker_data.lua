@@ -21,15 +21,23 @@ mod.global_constants = {
     trackable_breeds = {
         array = { },
         inv_table = { },
-        overlay_names = { },
+        overlay_names = {
+            styles = {
+                "short",
+                "long",
+                "full"
+            }
+        },
         sort = nil,
     },
     hud = {
         min_possible_scale = 0.5,
         max_possible_scale = 2,
         base_font_size = 25,
-        x_padding_ratio = 0.07,
-	    -- The width of the padding between the longest abreviated breed name and its unit count, as a percentage of the total width a line would have without padding
+        x_padding_ratio = 0,
+	    -- The width of the padding between the longest currently displayed abreviated breed name and its unit count, as a percentage of the longest overlay name's width
+        x_padding_flat = 11,
+        -- Padding at scale 1, in pixels, between the longest currently displayed overlay name and its unit cound
         y_padding_ratio = 0.4,
 	    -- The added vertical spacing between two text widgets, as a percentage of a widget's height
         prty_lvl_group_separation_ratio = 0.6,
@@ -59,24 +67,6 @@ mod.utilities = {
     sort_breed_names = nil,
     clean_breed_name = nil,
     is_monster = nil,
-    notif_clearing = {
-        clear = nil,
-        cutscene_loaded = false,
-        cutscene_loaded_by_name = {
-            outro_win = false,
-            outro_fail = false,
-        },
-        scoreboard_loaded = false,
-        init = function(self)
-            self.cutscene_loaded = false
-            self.cutscene_loaded_by_name = {
-                outro_win = false,
-                outro_fail = false,
-            }
-            self.scoreboard_loaded = false
-            --mod:echo("cutscene_loaded and scoreboard_loaded set to false")
-        end,
-    }
 }
 local util = mod.utilities
 
@@ -119,11 +109,17 @@ end
 
 mod.settings = {
     hud_scale = 1,
+    overlay_name_style = {
+        current = "short",
+        init = function(self)
+            self.current = mod:get("overlay_name_style") or self.current
+        end,
+    },
     font = {
         current = "machine_medium",
         init = function(self)
             self.current = mod:get("font") or self.current
-        end
+        end,
     },
     notif = {
         display_type = "icon",
@@ -224,9 +220,16 @@ constants.trackable_breeds.array = {
 constants.trackable_breeds.inv_table = {}
 
 table.sort(constants.trackable_breeds.array, util.monster_then_alphabetical_order)
+
+for _, style in pairs(constants.trackable_breeds.overlay_names.styles) do
+    constants.trackable_breeds.overlay_names[style] = { }
+end
+
 for _, clean_brd_name in pairs(constants.trackable_breeds.array) do
     constants.trackable_breeds.inv_table[clean_brd_name] = true
-    table.insert(constants.trackable_breeds.overlay_names, mod:localize(clean_brd_name.."_overlay_name"))
+    for _, style in pairs(constants.trackable_breeds.overlay_names.styles) do
+        constants.trackable_breeds.overlay_names[style][clean_brd_name] = mod:localize(clean_brd_name.."_overlay_name_"..style) or "[X]"
+    end
 end
 
 
@@ -345,6 +348,13 @@ for _, i in pairs({
 }) do
     table.insert(overlay_tracking_dropdown, {text = i, value = i})
 end
+
+local overlay_name_style = { }
+for _, i in pairs(constants.trackable_breeds.overlay_names.styles) do
+    table.insert(overlay_name_style, {text = i, value = i})
+end
+
+local default_overlay_name_style = "short"
 
 
 -------------------------------------------------------
@@ -549,6 +559,13 @@ local widgets = {
         default_value = 1,
         decimals_number = 1,
         step_size_value = 0.1,
+    },
+    {
+        setting_id = "overlay_name_style",
+        tooltip = "tooltip_overlay_name_style",
+        type = "dropdown",
+        default_value = default_overlay_name_style,
+        options = overlay_name_style,
     },
     {
         setting_id = "hud_color_lerp_ratio",

@@ -61,7 +61,8 @@ mod.hud_refresh_flags = {
     pos_or_scale = true,
     color = true,
     font = true,
-    notif_settings = true,
+    notif = true,
+    name_style = true,
 }
 
 
@@ -121,17 +122,6 @@ util.sort_breed_names = function(a,b)
         end
     end
 end
-
-util.notif_clearing.clear = function()
--- Removes all mod notifs from the notification feed
-    for _, breed_name in pairs(constants.trackable_breeds.array) do
-        for _, event in pairs(constants.events_extended) do
-            Managers.event:trigger("event_remove_notification", mod.active_notifs[breed_name][event].id)
-            mod.active_notifs[breed_name][event].id = nil
-        end
-    end
-end
-
 
 
 ---------------------------------------------------------------------------
@@ -252,6 +242,61 @@ settings.color:init()
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
+--                         Package handling
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- The notif icons are from a package, which we need to load manually to ensure it is available.
+
+mod.package = {
+    name = "packages/ui/views/inventory_background_view/inventory_background_view",
+    reference_name = "SpecialsTracker",
+    flags = {
+        loaded = false,
+        loading_started = false,
+        check_if_in_round = function()
+            local game_state_manager = Managers.state.game_mode
+            if game_state_manager and game_state_manager:game_mode_name() ~= "hub" then
+                return true
+            else
+                return false
+            end
+        end,
+    },
+    id = nil,
+    load = function(self)
+        if not Managers.package:has_loaded_id(self.id) then
+            self.id = Managers.package:load(
+                self.name,
+                self.reference_name,
+                function(id)
+                    self.id = id
+                    self.flags.loaded = true
+                end
+            )
+            self.flags.loading_started = true
+        else
+            self.flags.loaded = true
+        end
+    end,
+    unload = function(self)
+        if Managers
+        and Managers.package
+        and Managers.package.release then
+            mod.active_notifs:clear()
+            self.flags.loading_started = false
+            self.flags.loaded = false
+            if Managers.package:has_loaded_id(self.id) then
+                Managers.package:release(self.id)
+            end
+            self.id = nil
+        end
+    end
+}
+
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
 --                   Active notifs & units tables
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -262,27 +307,88 @@ settings.color:init()
 
 --[[
 mod.active_notifs
-    mod.active_notifs[breed_name]["spawn"/"death"]
-        Has the form {id = latest_known_notif_id, count = notif_multiplicity}, where a notif's "multiplicity" is the number of relevant events it denotes - e.g. "Sniper died x4" has multiplicity 4.
-    mod.active_notifs[breed_name]["hybrid"]
-        Has the form {id = latest_known_notif_id, count_spawn = notif_spawn_multiplicity, count_spawn = notif_spawn_multiplicity}.
-The notif id's are *not* necessarily cleared when a notif expires
+    mod.active_notifs.table
+        Contains the data of the last known active notif for each breed_name and extended event
+        mod.active_notifs.table[breed_name]["spawn"/"death"]
+            Has the form {id = latest_known_notif_id, count = notif_multiplicity}, where a notif's "multiplicity" is the number of relevant events it denotes - e.g. "Sniper died x4" has multiplicity 4.
+        mod.active_notifs.table[breed_name]["hybrid"]
+            Has the form {id = latest_known_notif_id, count_spawn = notif_spawn_multiplicity, count_spawn = notif_spawn_multiplicity}.
+        -> NB: The notif id's/counts are *not* necessarily cleared when a notif expires
+    mod.active_notifs:update()
+        Called each tick of global update. Clears all active notifs if relevant, or updates their various properties otherwise.
+    mod.active_notifs:clear()
+        Clears all active notifs.
+    mod.active_notifs.is_cleared
+        Is set to true whenever notifs are cleared by the previous method, and to false whenever a notif is added to the feed. Used to make -:update() faster in cutscenes/loading screens, while still allowing it to clear notifs in such situations.
+    mod.active_notifs.flags
+        Contains various flags used by other fields.
+        mod.active_notifs.flags.game_state_clear
+            Whether the game is in a state where notifs should be cleared (except for end-of-game cutscenes, which are handled separately)
+        mod.active_notifs.flags.cutscene_loaded
+            Whether a game win/fail cutscene is currently playing, or has been played recently. (Reset to false on entering loading screens)
+        mod.active_notifs.flags.custcene_loaded_by_name["outro_win"/"outro_fail"]
+            Whether the index outro has been loaded when entering a game, and is ready to played if necessary
+        mod.active_notifs.flags.clear_needed
+            Stores the value of (-.game_state_clear or -.cutscene_loaded).
+        mod.active_notifs.flags:set(flag_name, value)
+            Sets -[flag_name] to value, and updates -.clear_needed accordingly.
+        mod.active_notifs.flags:init()
+            Initialises all flags. Called when entering a loading screen.
 --]]
 
-mod.active_notifs = {}
+mod.active_notifs = {
+    table = { },
+    update = nil,
+    clear = nil,
+    is_cleared = true,
+    flags = {
+        game_state_clear = false,
+        cutscene_loaded = false,
+        cutscene_loaded_by_name = {
+            outro_win = false,
+            outro_fail = false,
+        },
+        clear_needed = false,
+        set = function(self, flag_name, value)
+            self[flag_name] = value
+            self.clear_needed = self.game_state_clear or self.cutscene_loaded
+        end,
+        init = function(self)
+        -- This is called upon entering loading screens
+            self.game_state_clear = true
+            self.cutscene_loaded = false
+            self.cutscene_loaded_by_name = {
+                outro_win = false,
+                outro_fail = false,
+            }
+            self.clear_needed = true
+        end,
+    },
+}
+
 for _, breed_name in pairs(constants.trackable_breeds.array) do
-    mod.active_notifs[breed_name] = {}
+    mod.active_notifs.table[breed_name] = {}
     for _, event in pairs(constants.events) do
-        mod.active_notifs[breed_name][event] = {
+        mod.active_notifs.table[breed_name][event] = {
             id = nil,
             count = 0
         }
     end
-    mod.active_notifs[breed_name]["hybrid"] = {
+    mod.active_notifs.table[breed_name]["hybrid"] = {
         id = nil,
         count_spawn = 0,
         count_death = 0,
     }
+end
+
+mod.active_notifs.clear = function(self)
+    for _, breed_name in pairs(constants.trackable_breeds.array) do
+        for _, event in pairs(constants.events_extended) do
+            Managers.event:trigger("event_remove_notification", self.table[breed_name][event].id)
+            self.table[breed_name][event].id = nil
+        end
+    end
+    self.is_cleared = true
 end
 
 
@@ -539,7 +645,8 @@ mod:hook("ConstantElementNotificationFeed", "_generate_notification_data", funct
             }
             notif_data.enter_sound_event = settings.notif.sound["enter_"..data.triggering_event] --mod:get("sound_"..data.triggering_event)
         end
-        if settings.notif.display_type == "icon" then
+        if settings.notif.display_type == "icon"
+        and Managers.package:has_loaded_id(mod.package.id) then
             notif_data.icon = event_icon(message_type)
             notif_data.scale_icon = true
             notif_data.icon_size = "medium"
@@ -578,16 +685,17 @@ local add_new_notif = function(breed_name, event, data)
         event,
         texts,
         function(id)
-            mod.active_notifs[breed_name][event].id = id
+            mod.active_notifs.table[breed_name][event].id = id
             if event == "hybrid" then
                 for _, evt in pairs(constants.events) do
-                    mod.active_notifs[breed_name]["hybrid"]["count_"..evt] = data[evt]
+                    mod.active_notifs.table[breed_name]["hybrid"]["count_"..evt] = data[evt]
                 end
             else
-                mod.active_notifs[breed_name][event].count = 1
+                mod.active_notifs.table[breed_name][event].count = 1
             end
         end
     )
+    mod.active_notifs.is_cleared = false
 end
 
 
@@ -600,9 +708,12 @@ local display_notification = function(breed_name, base_event)
     -- If there is neither a hybrid nor an other_base_event notif active, create a new one for base_event.
 
     -- NB: This function should only be called on valid breeds
+    if mod.active_notifs.flags.clear_needed then
+        return
+    end
     local constant_elements = Managers.ui and Managers.ui:ui_constant_elements()
     local notif_element = constant_elements and constant_elements:element("ConstantElementNotificationFeed")
-    local active_notif_info = mod.active_notifs[breed_name][base_event]
+    local active_notif_info = mod.active_notifs.table[breed_name][base_event]
     local id_or_nil = active_notif_info.id
 
     if id_or_nil and notif_element:_notification_by_id(id_or_nil) then
@@ -625,9 +736,9 @@ local display_notification = function(breed_name, base_event)
         else
             --> If they are grouped:
             local other_base_event = base_event == "spawn" and "death" or "spawn"
-            local other_evt_active_notif_info = mod.active_notifs[breed_name][other_base_event]
+            local other_evt_active_notif_info = mod.active_notifs.table[breed_name][other_base_event]
             local other_evt_id_or_nil = other_evt_active_notif_info.id
-            local hybrid_active_notif_info = mod.active_notifs[breed_name]["hybrid"]
+            local hybrid_active_notif_info = mod.active_notifs.table[breed_name]["hybrid"]
             local hybrid_id_or_nil = hybrid_active_notif_info.id
 
             if hybrid_id_or_nil and notif_element:_notification_by_id(hybrid_id_or_nil) then
@@ -650,11 +761,11 @@ local display_notification = function(breed_name, base_event)
                 data.triggering_event = base_event
                 add_new_notif(breed_name, "hybrid", data)
                 Managers.event:trigger("event_remove_notification", other_evt_id_or_nil)
-                mod.active_notifs[breed_name][base_event] = {
+                mod.active_notifs.table[breed_name][base_event] = {
                     id = nil,
                     count = 0,
                 }
-                mod.active_notifs[breed_name][other_base_event] = {
+                mod.active_notifs.table[breed_name][other_base_event] = {
                     id = nil,
                     count = 0,
                 }
@@ -667,41 +778,51 @@ local display_notification = function(breed_name, base_event)
 end
 
 
-local refresh_notif_text_colors = function()
--- This function is called every tick of mod.update to make the "x[count]" text's color start with a bright color, and move along a gradient towards another, more "tame" color. It also handles giving notifications with multiplicity thee right text.
+mod.active_notifs.update = function(self)
+-- This function is called every tick of mod.update
+-- If the relevant conditions are met, clears all notifs
+-- Otherwise, if the notifs haven't been "cleared" and it's possible that there are notifs to update, updates each active notif to do the following:
+-- 1. Make the "x[count]" text's color start with a bright color, and move along a gradient towards another, more "tame" color
+-- 2. Gives notifications with multiplicity the right text.
+    if self.is_cleared then
+        return
+    elseif self.flags.clear_needed then
+        self:clear()
+        return
+    end
     local constant_elements = Managers.ui and Managers.ui:ui_constant_elements()
     local notif_element = constant_elements and constant_elements:element("ConstantElementNotificationFeed")
+    local notif_type = settings.notif.display_type
     for _, breed_name in pairs(constants.trackable_breeds.array) do
-        local notif_type = settings.notif.display_type
-        -- Hybrid notifs:
-        local hybrid_notif_info = mod.active_notifs[breed_name]["hybrid"]
+        --> Hybrid notifs:
+        local hybrid_notif_info = self.table[breed_name]["hybrid"]
         local hybrid_notif_id = hybrid_notif_info.id
         if hybrid_notif_id and notif_element:_notification_by_id(hybrid_notif_id) then
-            local display_name = get_breed_presentation_name(breed_name)
+            local display_name_hybrid = get_breed_presentation_name(breed_name)
             local hybrid_notif = notif_element:_notification_by_id(hybrid_notif_id)
             local hybrid_notif_age = hybrid_notif.time
             local hybrid_notif_color = settings.color.notif.text_gradient(hybrid_notif_age, get_breed_color(breed_name))
-            local mltpl_text = {}
+            local mltpl_text_hbrd = {}
             for _, evt in pairs(constants.events) do
-                mltpl_text[evt] = notif_type == "icon"
+                mltpl_text_hbrd[evt] = notif_type == "icon"
                 and tostring(hybrid_notif_info["count_"..evt])
                 or "x"..tostring(hybrid_notif_info["count_"..evt])
-                mltpl_text[evt] = TextUtils.apply_color_to_text(mltpl_text[evt], hybrid_notif_color)
+                mltpl_text_hbrd[evt] = TextUtils.apply_color_to_text(mltpl_text_hbrd[evt], hybrid_notif_color)
             end
-            --local mltpl_text_death = TextUtils.apply_color_to_text(tostring(hybrid_notif_info["count_death"]), hybrid_notif_color)
-            local hybrid_message_1 = mod:localize("hybrid_message_grouped_1_"..notif_type, display_name)
-            local hybrid_message_2 = mod:localize("hybrid_message_grouped_2_"..notif_type, mltpl_text["spawn"], mltpl_text["death"])
+            local hybrid_message_1 = mod:localize("hybrid_message_grouped_1_"..notif_type, display_name_hybrid)
+            local hybrid_message_2 = mod:localize("hybrid_message_grouped_2_"..notif_type, mltpl_text_hbrd["spawn"], mltpl_text_hbrd["death"])
             local hybrid_texts = { hybrid_message_1, hybrid_message_2 }
             notif_element:_set_texts(hybrid_notif, hybrid_texts)
         end
-        -- Spawn/death notifs:
+        --> Spawn/death notifs:
         for _, event in pairs(constants.events) do
-            local this_notif_info = mod.active_notifs[breed_name][event]
+            local this_notif_info = self.table[breed_name][event]
             local this_notif_id = this_notif_info.id
-            local this_notif_multiplicity = this_notif_info.count
-            local this_notif = notif_element:_notification_by_id(this_notif_id)
-            if this_notif and this_notif_multiplicity > 1 then
-                -- In this case, the notif's text's color should be updated
+            local this_notif_multiplicity = this_notif_info.count or 0
+            if this_notif_id
+            and notif_element:_notification_by_id(this_notif_id)
+            and this_notif_multiplicity > 1 then
+                local this_notif = notif_element:_notification_by_id(this_notif_id)
                 local display_name = get_breed_presentation_name(breed_name)
                 local this_notif_age = this_notif.time
                 local this_notif_color = settings.color.notif.text_gradient(this_notif_age, get_breed_color(breed_name))
@@ -724,13 +845,15 @@ end
 ---------------------------------------------------------------------------
 
 mod.on_game_state_changed = function(status, state_name)
-    if status == "enter" and state_name == "GameplayStateRun" then
+    if state_name == "GameplayStateRun" and status == "enter" then
         mod.tracked_units:init()
     elseif state_name == "StateLoading" and status == "enter" then
-        util.notif_clearing:init()
-    elseif state_name == "StateGameScore" and status == "enter" then
-        util.notif_clearing.scoreboard_loaded = true
-        --mod:echo("scoreboard_loaded set to true")
+        mod.active_notifs.flags:init()
+        --mod.package:unload()
+    elseif state_name == "StateExitToMainMenu"
+    or state_name == "StateMainMenu"
+    or state_name == "StateLoading" then
+        mod.active_notifs.flags:set("game_state_clear", status == "enter")
     end
 end
 
@@ -753,6 +876,8 @@ mod.on_setting_changed = function(setting_id)
         mod.hud_refresh_flags.font = true
     elseif is_notif_setting then
         mod.hud_refresh_flags.notif = true
+    elseif setting_id == "overlay_name_style" then
+        mod.hud_refresh_flags.name_style = true
     end
 end
 
@@ -764,20 +889,11 @@ end
 mod:hook_safe("CinematicSceneExtension", "setup_from_component", function(self)
     local name = self._cinematic_name
     if (name == "outro_win" or name == "outro_fail") then
-        if util.notif_clearing.cutscene_loaded_by_name[name] then
-            util.notif_clearing.cutscene_loaded = true
-            --mod:echo("cutscene_loaded set to true because this cutscene is already loaded: "..name)
+        if mod.active_notifs.flags.cutscene_loaded_by_name[name] then
+            mod.active_notifs.flags:set("cutscene_loaded", true)
         else
-            util.notif_clearing.cutscene_loaded_by_name[name] = true
-            --mod:echo("cutscene_loaded_by_name set to true for name: "..name)
+            mod.active_notifs.flags.cutscene_loaded_by_name[name] = true
         end
-        --[[
-        if util.notif_clearing.val[name] then
-            mod.clear_notifs()
-        else
-            util.notif_clearing.val[name] = true
-        end
-        --]]
     end
 end)
 
@@ -785,19 +901,6 @@ mod:command("clear_notifs", "Clears all the active notifications.", function()
     Managers.event:trigger("event_clear_notifications")
 end)
 
---[[
-mod:command("st_clear_notifs_on", "Toggle on the constant clearing of mod notifs (DEBUGGING)", function()
-    mod.constant_notif_clear = true
-end)
-
-mod:command("st_clear_notifs_off", "Toggle off the constant clearing of mod notifs (DEBUGGING)", function()
-    mod.constant_notif_clear = false
-end)
-
-mod:command("st_clear_notifs_check", "Check the value of the flag that can force constant notif clearing (DEBUGGING)", function()
-    mod:echo("Constant notif clearing flag: "..tostring(mod.constant_notif_clear))
-end)
---]]
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -833,18 +936,23 @@ mod.update = function(dt)
             end
         end
     end
-    -- Update multiplicit notifs color
-    refresh_notif_text_colors()
+    -- Update notif text & text color, and clear all mod notifs if needed
+    mod.active_notifs:update()
     -- Refresh notif settings if needed
     if mod.hud_refresh_flags.notif then
         settings.notif:init()
         mod.hud_refresh_flags.notif = false
     end
-    -- Clear the notifs if between the start of an end-game cutscene and the scoreboard
-    if (util.notif_clearing.cutscene_loaded
-    and not util.notif_clearing.scoreboard_loaded)
-    or mod.constant_notif_clear then
-        util.notif_clearing.clear()
+    -- Start loading the package if needed
+    if not mod.package.flags.loading_started
+    and mod.package.flags.check_if_in_round()
+    and settings.notif.display_type == "icon" then
+        mod.package:load()
+    end
+    -- Start unloading the package if needed
+    if mod.package.flags.loaded
+    and not mod.package.flags.check_if_in_round() then
+        mod.package:unload()
     end
 end
 
