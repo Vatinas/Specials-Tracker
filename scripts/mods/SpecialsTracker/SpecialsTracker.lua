@@ -535,11 +535,21 @@ end
 mod.tracked_units.record_unit_spawn = function(breed_name, unit)
     local tracked_notif = mod.tracked_units.notif_breeds.inv_table[breed_name]
     local tracked_overlay = mod.tracked_units.overlay_breeds.inv_table[breed_name]
+    local new_unit = false
     if tracked_notif or tracked_overlay then
-        table.insert(mod.tracked_units.units[breed_name], unit)
-        mod.tracked_units.refresh_unit_count(breed_name)
+        local units_table = mod.tracked_units.units[breed_name]
+        local unit_index = table.index_of(units_table, unit)
+        if unit_index == -1 then
+            table.insert(mod.tracked_units.units[breed_name], unit)
+            mod.tracked_units.refresh_unit_count(breed_name)
+            new_unit = true
+        end
     end
-    return({notif = tracked_notif, overlay = tracked_overlay})
+    return({
+        notif = tracked_notif,
+        overlay = tracked_overlay,
+        new_unit = new_unit,
+    })
 end
 
 
@@ -963,6 +973,17 @@ end
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
+local on_enemy_spawn = function(_, _, unit)
+    local unit_data_ext = ScriptUnit.extension(unit, "unit_data_system")
+    local breed = unit_data_ext and unit_data_ext:breed()
+    local raw_breed_name = breed and breed.name
+    local breed_name = raw_breed_name and util.clean_breed_name(raw_breed_name)
+    local spawn_record_result = breed_name and mod.tracked_units.record_unit_spawn(breed_name, unit)
+    if spawn_record_result and spawn_record_result.notif and spawn_record_result.new_unit then
+       display_notification(breed_name, "spawn")
+    end
+end
+
 -- Hook the function which adds a new unit
 mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit, game_object_id, is_husk)
     local game_session = Managers.state.game_session:game_session()
@@ -971,8 +992,11 @@ mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit
         local raw_breed_name = NetworkLookup.breed_names[breed_id]
         local breed_name = util.clean_breed_name(raw_breed_name)
         local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
-        if spawn_record_result.notif then
+        if spawn_record_result and spawn_record_result.notif and spawn_record_result.new_unit then
            display_notification(breed_name, "spawn")
         end
     end
 end)
+
+mod:hook_safe("HealthExtension", "init", on_enemy_spawn)
+mod:hook_safe("HuskHealthExtension", "init", on_enemy_spawn)
