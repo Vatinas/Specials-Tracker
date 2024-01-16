@@ -118,6 +118,12 @@ loc_raw.setting = {
     overlay_name_style = {
         en = "Overlay name style",
     },
+    global_toggle_notif = {
+        en = "Notifications",
+    },
+    global_toggle_overlay = {
+        en = "HUD element (overlay)",
+    },
 }
 
 for _, i in pairs(priority_lvls) do
@@ -187,7 +193,7 @@ loc_raw.tooltip = {
         en = "\nWhether the monsters will be listed at the top or the bottom of the list in the overlay\n\nIt is recommended to list them at the bottom, so the rest of the units don't get pushed up or down when a monster spawns or die",
     },
     tooltip_overlay_name_style = {
-        en = "\nShort: SNP/FLM/TRP\nLong: SNIP/TRAP/FLAM\nFull: Sniper/Flamer/Trapper"
+        en = "\nShort: SNP/FLM/TRP\nLong: SNIP/FLAM/TRAP\nFull: Sniper/Flamer/Trapper"
     },
 }
 

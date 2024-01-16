@@ -78,7 +78,9 @@ end
 
 local show_breed = function(breed_name)
 	-- Checks the mod options currently stored, and returns whether the breed's widget should be displayed
-	if mod.tracked_units.overlay_breeds.inv_table[breed_name] then
+	if not settings.global_toggle.overlay then
+		return false
+	elseif mod.tracked_units.overlay_breeds.inv_table[breed_name] then
 		if mod.tracked_units.overlay_breeds.only_if_active[breed_name] then
 			return mod.tracked_units.unit_count[breed_name] ~= 0
 		else
@@ -301,6 +303,9 @@ local background_passes = {
 				1
 			},
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{ -- Gradient texture
 		style_id = "background_gradient",
@@ -314,6 +319,9 @@ local background_passes = {
 				2
 			},
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	-- Frame borders (four, one of for each side)
 	{
@@ -329,6 +337,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "frame_right",
@@ -343,6 +354,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "frame_top",
@@ -357,6 +371,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "frame_bottom",
@@ -371,6 +388,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	-- Frame corners (four sets of two, one set for each corner)
 	-- Naming convention: to determine what corner element "corner_dir1_dir2" refers to, mentally start from the center of the background, then go in direction dir1 first to join a frame border in its middle point; then, from that frame border middle point, follow direction dir2 to join a corner. "corner_dir1_dir2" is the unique corner element that your path traced near its end.
@@ -388,6 +408,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "corner_left_top",
@@ -402,6 +425,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "corner_top_right",
@@ -416,6 +442,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "corner_right_top",
@@ -430,6 +459,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "corner_bot_left",
@@ -444,6 +476,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "corner_left_bot",
@@ -458,6 +493,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "corner_bot_right",
@@ -472,6 +510,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 	{
 		style_id = "corner_right_bot",
@@ -486,6 +527,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return settings.global_toggle.overlay
+		end,
 	},
 
 }
