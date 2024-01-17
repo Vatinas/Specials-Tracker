@@ -152,7 +152,6 @@ mod.hud_dimensions.init = function(self)
 	self.number_pass_size = {number_width, height}
 
 	self.x_padding = constants.hud.x_padding_ratio * max_text_width + constants.hud.x_padding_flat * scale
-	--self.x_padding = constants.hud.base_x_padding * scale
 	self.number_pass_x_offset = max_text_width + self.x_padding
 
 	local y_padding = constants.hud.y_padding_ratio * height
