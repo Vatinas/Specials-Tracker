@@ -78,7 +78,9 @@ end
 
 local show_breed = function(breed_name)
 	-- Checks the mod options currently stored, and returns whether the breed's widget should be displayed
-	if mod.tracked_units.overlay_breeds.inv_table[breed_name] then
+	if not settings.global_toggle.overlay then
+		return false
+	elseif mod.tracked_units.overlay_breeds.inv_table[breed_name] then
 		if mod.tracked_units.overlay_breeds.only_if_active[breed_name] then
 			return mod.tracked_units.unit_count[breed_name] ~= 0
 		else
@@ -86,6 +88,10 @@ local show_breed = function(breed_name)
 		end
 	end
 	return false
+end
+
+local show_background = function()
+	return settings.global_toggle.overlay and mod.hud_dimensions.nb_of_displayed_breeds ~= 0
 end
 
 
@@ -124,7 +130,8 @@ end
 
 mod.hud_dimensions = {
 	nb_of_prty_lvls_used = #constants.priority_levels,
-	-- NB: The above field is not calculated during -:init(), but when the HUD element's position and scale are flagged for refreshing, since the number of priority levels that are actually used is only calculated then
+	nb_of_displayed_breeds = #constants.trackable_breeds.array,
+	-- NB: The above fields are not calculated during -:init(), but when the HUD element's position and scale are flagged for refreshing, since the number of priority levels that are actually used is only calculated then
 }
 
 mod.hud_dimensions.init = function(self)
@@ -145,7 +152,6 @@ mod.hud_dimensions.init = function(self)
 	self.number_pass_size = {number_width, height}
 
 	self.x_padding = constants.hud.x_padding_ratio * max_text_width + constants.hud.x_padding_flat * scale
-	--self.x_padding = constants.hud.base_x_padding * scale
 	self.number_pass_x_offset = max_text_width + self.x_padding
 
 	local y_padding = constants.hud.y_padding_ratio * height
@@ -153,7 +159,7 @@ mod.hud_dimensions.init = function(self)
 	self.prty_groups_added_y_padding = y_padding * constants.hud.prty_lvl_group_separation_ratio
 
 	local scaled_container_width = self.text_pass_size[1] + self.number_pass_size[1] + self.x_padding
-	local scaled_container_height = #constants.trackable_breeds.array * self.y_offset_onestep - y_padding + (self.nb_of_prty_lvls_used - 1) * self.prty_groups_added_y_padding
+	local scaled_container_height = self.nb_of_displayed_breeds * self.y_offset_onestep - y_padding + (self.nb_of_prty_lvls_used - 1) * self.prty_groups_added_y_padding
 
 	self.container_size = {
 		scaled_container_width,
@@ -301,6 +307,9 @@ local background_passes = {
 				1
 			},
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{ -- Gradient texture
 		style_id = "background_gradient",
@@ -314,6 +323,9 @@ local background_passes = {
 				2
 			},
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	-- Frame borders (four, one of for each side)
 	{
@@ -329,6 +341,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "frame_right",
@@ -343,6 +358,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "frame_top",
@@ -357,6 +375,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "frame_bottom",
@@ -371,6 +392,9 @@ local background_passes = {
 			0,
 			frame_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	-- Frame corners (four sets of two, one set for each corner)
 	-- Naming convention: to determine what corner element "corner_dir1_dir2" refers to, mentally start from the center of the background, then go in direction dir1 first to join a frame border in its middle point; then, from that frame border middle point, follow direction dir2 to join a corner. "corner_dir1_dir2" is the unique corner element that your path traced near its end.
@@ -388,6 +412,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "corner_left_top",
@@ -402,6 +429,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "corner_top_right",
@@ -416,6 +446,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "corner_right_top",
@@ -430,6 +463,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "corner_bot_left",
@@ -444,6 +480,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "corner_left_bot",
@@ -458,6 +497,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "corner_bot_right",
@@ -472,6 +514,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 	{
 		style_id = "corner_right_bot",
@@ -486,6 +531,9 @@ local background_passes = {
 			0,
 			corner_z_offset
 		},
+		visibility_function = function(content, style)
+			return show_background()
+		end,
 	},
 
 }
@@ -587,6 +635,7 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 		end
 		--> Refresh the hud dimensions to access the new container height, which depends on the number of priority levels used, which we only just calculated
 		mod.hud_dimensions.nb_of_prty_lvls_used = nb_prty_lvl_gaps + 1
+		mod.hud_dimensions.nb_of_displayed_breeds = i + 1
 		mod.hud_dimensions:init()
 		--> Redefining style fields for background widgets
 		-- 0. Preliminary definitions

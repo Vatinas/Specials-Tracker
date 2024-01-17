@@ -708,7 +708,9 @@ local display_notification = function(breed_name, base_event)
     -- If there is neither a hybrid nor an other_base_event notif active, create a new one for base_event.
 
     -- NB: This function should only be called on valid breeds
-    if mod.active_notifs.flags.clear_needed then
+    if mod.active_notifs.flags.clear_needed
+    or not settings.global_toggle.notif then
+    --or not mod:get("global_toggle_notif") then
         return
     end
     local constant_elements = Managers.ui and Managers.ui:ui_constant_elements()
@@ -863,7 +865,10 @@ mod.on_setting_changed = function(setting_id)
     local is_priority_setting = string.match(setting_id, "(.+)_priority$")
     local is_color_setting = string.match(setting_id, "color_(.+)$")
     local is_notif_setting = string.match(setting_id, "notif_(.+)$") or string.match(setting_id, "sound_(.+)$")
-    if is_tracking_method_setting then
+    local is_global_toggle_setting = string.match(setting_id, "global_toggle_(.+)$")
+    if is_global_toggle_setting then
+        settings.global_toggle:init()
+    elseif is_tracking_method_setting then
         mod.tracked_units:init()
         -- NB: mod.tracked_units:init() sets the pos_or_scale flag to true, so no need to do it manually here
     elseif setting_id == "hud_scale" then

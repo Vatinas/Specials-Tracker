@@ -109,6 +109,14 @@ end
 
 mod.settings = {
     hud_scale = 1,
+    global_toggle = {
+        notif = true,
+        overlay = true,
+        init = function(self)
+            self.notif = mod:get("global_toggle_notif")
+            self.overlay = mod:get("global_toggle_overlay")
+        end
+    },
     overlay_name_style = {
         current = "short",
         init = function(self)
@@ -553,46 +561,62 @@ end
 
 local widgets = {
     {
-        setting_id = "hud_scale",
-        type = "numeric",
-        range = { constants.hud.min_possible_scale, constants.hud.max_possible_scale },
-        default_value = 1,
-        decimals_number = 1,
-        step_size_value = 0.1,
-    },
-    {
-        setting_id = "overlay_name_style",
-        tooltip = "tooltip_overlay_name_style",
-        type = "dropdown",
-        default_value = default_overlay_name_style,
-        options = overlay_name_style,
-    },
-    {
-        setting_id = "hud_color_lerp_ratio",
-        tooltip = "tooltip_hud_color_lerp_ratio",
-        type = "numeric",
-        range = { 0, 1 },
-        default_value = 0.8,
-        decimals_number = 1,
-        step_size_value = 0.1,
-    },
-    {
-        setting_id = "font",
-        type = "dropdown",
-        default_value = default_font,
-        options = font_options,
-    },
-    {
-        setting_id = "notif_display_type",
-        type = "dropdown",
-        default_value = "icon",
-        options = table.clone(notif_display_dropdown),
-    },
-    {
-        setting_id = "notif_grouping",
-        -- tooltip = "tooltip_notif_grouping",
+        setting_id = "global_toggle_notif",
+        tooltip = "tooltip_global_toggle_notif",
         type = "checkbox",
         default_value = true,
+        sub_widgets = {
+            {
+                setting_id = "notif_display_type",
+                type = "dropdown",
+                default_value = "icon",
+                options = table.clone(notif_display_dropdown),
+            },
+            {
+                setting_id = "notif_grouping",
+                -- tooltip = "tooltip_notif_grouping",
+                type = "checkbox",
+                default_value = true,
+            },
+        },
+    },
+    {
+        setting_id = "global_toggle_overlay",
+        tooltip = "tooltip_global_toggle_overlay",
+        type = "checkbox",
+        default_value = true,
+        sub_widgets = {
+            {
+                setting_id = "hud_scale",
+                type = "numeric",
+                range = { constants.hud.min_possible_scale, constants.hud.max_possible_scale },
+                default_value = 1,
+                decimals_number = 1,
+                step_size_value = 0.1,
+            },
+            {
+                setting_id = "overlay_name_style",
+                tooltip = "tooltip_overlay_name_style",
+                type = "dropdown",
+                default_value = default_overlay_name_style,
+                options = overlay_name_style,
+            },
+            {
+                setting_id = "hud_color_lerp_ratio",
+                tooltip = "tooltip_hud_color_lerp_ratio",
+                type = "numeric",
+                range = { 0, 1 },
+                default_value = 0.8,
+                decimals_number = 1,
+                step_size_value = 0.1,
+            },
+            {
+                setting_id = "font",
+                type = "dropdown",
+                default_value = default_font,
+                options = font_options,
+            },
+        }
     },
 }
 
