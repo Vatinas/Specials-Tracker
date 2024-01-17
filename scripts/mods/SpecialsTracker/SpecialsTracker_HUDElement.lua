@@ -90,6 +90,10 @@ local show_breed = function(breed_name)
 	return false
 end
 
+local show_background = function()
+	return settings.global_toggle.overlay and mod.hud_dimensions.nb_of_displayed_breeds ~= 0
+end
+
 
 --------------------------------------------------------
 -- Calculating various HUD dimensions whenever necessary
@@ -126,7 +130,8 @@ end
 
 mod.hud_dimensions = {
 	nb_of_prty_lvls_used = #constants.priority_levels,
-	-- NB: The above field is not calculated during -:init(), but when the HUD element's position and scale are flagged for refreshing, since the number of priority levels that are actually used is only calculated then
+	nb_of_displayed_breeds = #constants.trackable_breeds.array,
+	-- NB: The above fields are not calculated during -:init(), but when the HUD element's position and scale are flagged for refreshing, since the number of priority levels that are actually used is only calculated then
 }
 
 mod.hud_dimensions.init = function(self)
@@ -155,7 +160,7 @@ mod.hud_dimensions.init = function(self)
 	self.prty_groups_added_y_padding = y_padding * constants.hud.prty_lvl_group_separation_ratio
 
 	local scaled_container_width = self.text_pass_size[1] + self.number_pass_size[1] + self.x_padding
-	local scaled_container_height = #constants.trackable_breeds.array * self.y_offset_onestep - y_padding + (self.nb_of_prty_lvls_used - 1) * self.prty_groups_added_y_padding
+	local scaled_container_height = self.nb_of_displayed_breeds * self.y_offset_onestep - y_padding + (self.nb_of_prty_lvls_used - 1) * self.prty_groups_added_y_padding
 
 	self.container_size = {
 		scaled_container_width,
@@ -304,7 +309,7 @@ local background_passes = {
 			},
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{ -- Gradient texture
@@ -320,7 +325,7 @@ local background_passes = {
 			},
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	-- Frame borders (four, one of for each side)
@@ -338,7 +343,7 @@ local background_passes = {
 			frame_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -355,7 +360,7 @@ local background_passes = {
 			frame_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -372,7 +377,7 @@ local background_passes = {
 			frame_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -389,7 +394,7 @@ local background_passes = {
 			frame_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	-- Frame corners (four sets of two, one set for each corner)
@@ -409,7 +414,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -426,7 +431,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -443,7 +448,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -460,7 +465,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -477,7 +482,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -494,7 +499,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -511,7 +516,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 	{
@@ -528,7 +533,7 @@ local background_passes = {
 			corner_z_offset
 		},
 		visibility_function = function(content, style)
-			return settings.global_toggle.overlay
+			return show_background()
 		end,
 	},
 
@@ -631,6 +636,7 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 		end
 		--> Refresh the hud dimensions to access the new container height, which depends on the number of priority levels used, which we only just calculated
 		mod.hud_dimensions.nb_of_prty_lvls_used = nb_prty_lvl_gaps + 1
+		mod.hud_dimensions.nb_of_displayed_breeds = i + 1
 		mod.hud_dimensions:init()
 		--> Redefining style fields for background widgets
 		-- 0. Preliminary definitions
