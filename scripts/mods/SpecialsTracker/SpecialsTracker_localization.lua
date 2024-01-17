@@ -192,8 +192,11 @@ loc_raw.tooltip = {
     tooltip_monsters_pos = {
         en = "\nWhether the monsters will be listed at the top or the bottom of the list in the overlay\n\nIt is recommended to list them at the bottom, so the rest of the units don't get pushed up or down when a monster spawns or die",
     },
-    tooltip_overlay_name_style = {
-        en = "\nShort: SNP/FLM/TRP\nLong: SNIP/FLAM/TRAP\nFull: Sniper/Flamer/Trapper"
+    tooltip_global_toggle_notif = {
+        en = "\nEnable or disable the display of notifications when desired units spawn or die.\n\nNotifications can be toggled on or off for each enemy type separately, though setting this to \"off\" disables them globally, regardless of other mod settings."
+    },
+    tooltip_global_toggle_overlay = {
+        en = "\nEnable or disable the display of a permanent overlay, which tracks the number of currently active enemies of certain types.\n\nEach enemy type can have its overlay behaviour changed separately, though setting this to \"off\" disables the overlay globally, regardless of other overlay settings."
     },
 }
 

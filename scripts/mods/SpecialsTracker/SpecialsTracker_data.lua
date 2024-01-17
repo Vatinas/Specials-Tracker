@@ -562,7 +562,7 @@ end
 local widgets = {
     {
         setting_id = "global_toggle_notif",
-        -- tooltip = "tooltip_notif_grouping",
+        tooltip = "tooltip_global_toggle_notif",
         type = "checkbox",
         default_value = true,
         sub_widgets = {
@@ -582,7 +582,7 @@ local widgets = {
     },
     {
         setting_id = "global_toggle_overlay",
-        -- tooltip = "tooltip_notif_grouping",
+        tooltip = "tooltip_global_toggle_overlay",
         type = "checkbox",
         default_value = true,
         sub_widgets = {
