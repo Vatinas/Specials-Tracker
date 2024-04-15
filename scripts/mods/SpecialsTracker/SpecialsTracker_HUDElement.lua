@@ -151,6 +151,22 @@ mod.hud_dimensions.init = function(self)
 	self.text_pass_size = {max_text_width, height}
 	self.number_pass_size = {number_width, height}
 
+	self.global_offset = {}
+	if mod:get("overlay_move_from_center") then
+		local screen_size = UIWorkspaceSettings.screen.size
+		self.global_offset = {
+			800 * screen_size[1]/1920,
+			-200 * screen_size[2]/1080,
+			0,
+		}
+	else
+		self.global_offset = {
+			0,
+			0,
+			0,
+		}
+	end
+
 	self.x_padding = constants.hud.x_padding_ratio * max_text_width + constants.hud.x_padding_flat * scale
 	self.number_pass_x_offset = max_text_width + self.x_padding
 
@@ -182,11 +198,7 @@ local scenegraph_definition = {
 		vertical_alignment = "center",
 		horizontal_alignment = "center",
 		size = mod.hud_dimensions.container_size,
-		position = {
-			0,
-			0,
-			0,
-		},
+		position = { 0, 0, 0 },
 	},
 }
 
@@ -607,6 +619,7 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 		mod.tracked_units:init()
 		mod.hud_dimensions:init()
 		local scale = settings.hud_scale
+		local global_offset = mod.hud_dimensions.global_offset
 		local i = -1
 		local nb_prty_lvl_gaps = -1
 		local current_prty_lvl = ""
@@ -627,8 +640,8 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 					for j=1,2 do
 						widget_style_pass.size[j] = pass_size(type)[j]
 					end
-					widget_style_pass.offset[1] = x_offset(type)
-					widget_style_pass.offset[2] = y_offset(i, nb_prty_lvl_gaps)
+					widget_style_pass.offset[1] = x_offset(type) + global_offset[1]
+					widget_style_pass.offset[2] = y_offset(i, nb_prty_lvl_gaps) + global_offset[2]
 					widget_style_pass.font_size = constants.hud.base_font_size * scale
 				end
 			end
@@ -659,29 +672,29 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 		-- Offsets former frame borders and corners depending on their assigned position:
 		local top_left_offset = function(z_offset)
 			return {
-				- frame_thickness - left_pad +1,
-				- frame_thickness - top_pad +1,
+				- frame_thickness - left_pad +1 + global_offset[1],
+				- frame_thickness - top_pad +1 + global_offset[2],
 				z_offset,
 			}
 		end
 		local top_right_offset = function(z_offset)
 			return {
-				actual_container_width - left_pad -1,
-				- frame_thickness - top_pad +1,
+				actual_container_width - left_pad -1 + global_offset[1],
+				- frame_thickness - top_pad +1 + global_offset[2],
 				z_offset,
 			}
 		end
 		local bot_left_offset = function(z_offset)
 			return {
-				- frame_thickness - left_pad +1,
-				actual_container_height - top_pad -1,
+				- frame_thickness - left_pad +1 + global_offset[1],
+				actual_container_height - top_pad -1 + global_offset[2],
 				z_offset,
 			}
 		end
 		local bot_right_offset = function(z_offset)
 			return {
-				actual_container_width - left_pad -1,
-				actual_container_height - top_pad -1,
+				actual_container_width - left_pad -1 + global_offset[1],
+				actual_container_height - top_pad -1 + global_offset[2],
 				z_offset,
 			}
 		end
@@ -690,8 +703,8 @@ HudElementSpecialsTracker.update = function(self, dt, t, ui_renderer, render_set
 			local widget_style_pass = widget_style[pass_name]
 			local applied_base_offset = pass_name == "terminal_texture" and constants.hud.base_background_offset or 0
 			widget_style_pass.offset = {
-				- applied_base_offset - left_pad,
-				- applied_base_offset - top_pad,
+				- applied_base_offset - left_pad + global_offset[1],
+				- applied_base_offset - top_pad + global_offset[2],
 				widget_style_pass.offset[3]
 			}
 			widget_style_pass.size = {

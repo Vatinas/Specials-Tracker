@@ -861,6 +861,18 @@ end
 
 mod.on_setting_changed = function(setting_id)
 -- Monitor setting changes, and flag changed settings to have the variable used to store them refreshed when they're next needed
+    -- If the changed setting is a sound, play it
+    local sound_name_or_nil = string.match(setting_id, "sound_(.+)$")
+    if sound_name_or_nil then
+        local ui_manager = Managers.ui
+        local new_sound = mod:get(setting_id)
+        local old_sound = settings.notif.sound["enter_"..sound_name_or_nil]
+        if ui_manager and new_sound ~= old_sound then
+            ui_manager:stop_2d_sound(old_sound)
+            ui_manager:play_2d_sound(new_sound)
+            old_sound = new_sound
+        end
+    end
     local is_tracking_method_setting = string.match(setting_id, "(.+)_overlay$") or string.match(setting_id, "(.+)_notif$")
     local is_priority_setting = string.match(setting_id, "(.+)_priority$")
     local is_color_setting = string.match(setting_id, "color_(.+)$")

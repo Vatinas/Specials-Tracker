@@ -5,6 +5,7 @@ local mod = get_mod("SpecialsTracker")
 local FontDefinitions = require("scripts/managers/ui/ui_fonts_definitions")
 local Breeds = require("scripts/settings/breed/breeds")
 local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
+local UIWorkspaceSettings = require("scripts/settings/ui/ui_workspace_settings")
 
 
 ---------------------------------------------------------------------------
@@ -16,8 +17,8 @@ local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
 mod.global_constants = {
     events = {"spawn","death"},
     events_extended = {"spawn", "death", "hybrid"},
-    priority_levels = {"0", "1", "2", "3"},
-    priority_levels_non_zero = {"1", "2", "3"},
+    priority_levels = {"0", "1", "2", "3", "4"},
+    priority_levels_non_zero = {"1", "2", "3", "4"},
     trackable_breeds = {
         array = { },
         inv_table = { },
@@ -31,6 +32,7 @@ mod.global_constants = {
         sort = nil,
     },
     hud = {
+        --screen_size = UIWorkspaceSettings.screen.size,
         min_possible_scale = 0.5,
         max_possible_scale = 2,
         base_font_size = 25,
@@ -45,6 +47,23 @@ mod.global_constants = {
         base_background_offset = 14,
 	    -- In pixels, the "padding" required to make the terminal background have its intended size.
 	    -- NB: It looks like this padding is 1. not scale dependent, 2. not horizontal/vertical dependent, and 3. not left/right or top/bottom dependent
+        global_offset = function()
+            -- Returns the global offset to apply to the overlay, depending on whether it should be moved to a "default" position or not
+            if mod:get("overlay_move_from_center") then
+                local screen_size = UIWorkspaceSettings.screen.size
+                return {
+                    1710/2 * screen_size[1]/1920,
+                    230/2 * screen_size[2]/1080,
+                    0,
+                }
+            else
+                return {
+                    0,
+                    0,
+                    0,
+                }
+            end
+        end
     },
     color = {
         non_zero_units = {255, 255, 255, 255},
@@ -443,7 +462,7 @@ local default_colors = function(extended_evt_or_priority_lvl)
             g = 220,
             b = 135,
         })
-    elseif extended_evt_or_priority_lvl == "3" then
+    elseif extended_evt_or_priority_lvl == "3" or extended_evt_or_priority_lvl == "4" then
         -- This is the game's color of specials in the killfeed
         return({
             alpha = 255,
@@ -586,6 +605,12 @@ local widgets = {
         type = "checkbox",
         default_value = true,
         sub_widgets = {
+            {
+                setting_id = "overlay_move_from_center",
+                tooltip = "tooltip_overlay_move_from_center",
+                type = "checkbox",
+                default_value = false,
+            },
             {
                 setting_id = "hud_scale",
                 type = "numeric",

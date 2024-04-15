@@ -28,7 +28,7 @@ local trackable_breeds = {
     "monsters",
 }
 
-local priority_lvls = {"0", "1", "2", "3", "monsters"}
+local priority_lvls = {"0", "1", "2", "3", "4", "monsters"}
 -- NB: We shouldn't need 0 for localisation purposes, but as long as it doesn't add that much unnecessary data, better safe than sorry
 local color_indices = table.clone(priority_lvls)
 table.insert(color_indices, "spawn")
@@ -41,6 +41,13 @@ local col_locs = {
     _b = "B",
     _alpha = "Alpha",
 }
+
+local function cf(color_name)
+	local color = Color[color_name](255, true)
+	return string.format("{#color(%s,%s,%s)}", color[2], color[3], color[4])
+end
+
+local global_toggle_color = "terminal_icon"
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -100,8 +107,17 @@ loc_raw.subcategory["color_monsters"] = {
 -------------------------------------------------------
 
 loc_raw.setting = {
+    global_toggle_notif = {
+        en = cf(global_toggle_color) .. "Notifications",
+    },
+    global_toggle_overlay = {
+        en = cf(global_toggle_color) .. "HUD element (overlay)",
+    },
     notif_display_type = {
         en = "Notification style",
+    },
+    overlay_move_from_center = {
+        en = "Move to the right of the screen",
     },
     notif_grouping = {
         en = "Group spawn/death notifs. of a given enemy",
@@ -117,12 +133,6 @@ loc_raw.setting = {
     },
     overlay_name_style = {
         en = "Overlay name style",
-    },
-    global_toggle_notif = {
-        en = "Notifications",
-    },
-    global_toggle_overlay = {
-        en = "HUD element (overlay)",
     },
 }
 
@@ -173,6 +183,9 @@ loc_raw.tooltip = {
     },
     tooltip_notif_display_type = {
         en = "\nAdd a marking to notifications to further separate spawn and death ones, on top of their background color\n\nIcon: Short text with an icon representing spawn or death\n\nText: Longer text with no icon",
+    },
+    tooltip_overlay_move_from_center = {
+        en = "\nMove the overlay to a \"default\" position to the right of the screen.\n\nIf you want to move the overlay more precisely, I recommend you leave this option off, and use the mod " .. cf("ui_terminal") .. "Custom HUD{#reset()} to move it.",
     },
     tooltip_hud_color_lerp_ratio = {
         en = "\nHow strongly the color specific to an enemy's priority level is expressed in the overlay, 0 being not-at-all (white), and 1 being completely (the enemy's priority level's color)\n\nThis overlay-specific coloring can be disabled per priority level to simply have white instead",
