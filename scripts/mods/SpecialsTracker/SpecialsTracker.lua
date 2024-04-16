@@ -3,7 +3,7 @@ local mod = get_mod("SpecialsTracker")
 require("scripts/foundation/utilities/math")
 require("scripts/foundation/utilities/color")
 
--- local Breeds = require("scripts/settings/breed/breeds")
+local Breeds = require("scripts/settings/breed/breeds")
 local TextUtils = require("scripts/utilities/ui/text")
 local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
 local ViewElementProfilePresetsSettings = require("scripts/ui/view_elements/view_element_profile_presets/view_element_profile_presets_settings")
@@ -312,9 +312,14 @@ mod.active_notifs
         mod.active_notifs.table[breed_name]["spawn"/"death"]
             Has the form {id = latest_known_notif_id, count = notif_multiplicity}, where a notif's "multiplicity" is the number of relevant events it denotes - e.g. "Sniper died x4" has multiplicity 4.
         mod.active_notifs.table[breed_name]["hybrid"]
-            Has the form {id = latest_known_notif_id, count_spawn = notif_spawn_multiplicity, count_spawn = notif_spawn_multiplicity}.
+            Has the form {
+                id = latest_known_notif_id,
+                count_spawn = notif_spawn_multiplicity,
+                time_spawn = time since last spawn tracked by this notif,
+                count_death = notif_death_multiplicity}.
+                time_death = time since last spawn tracked by this notif }
         -> NB: The notif id's/counts are *not* necessarily cleared when a notif expires
-    mod.active_notifs:update()
+    mod.active_notifs:update(dt)
         Called each tick of global update. Clears all active notifs if relevant, or updates their various properties otherwise.
     mod.active_notifs:clear()
         Clears all active notifs.
@@ -377,7 +382,9 @@ for _, breed_name in pairs(constants.trackable_breeds.array) do
     mod.active_notifs.table[breed_name]["hybrid"] = {
         id = nil,
         count_spawn = 0,
+        time_spawn = 10000, -- Using a large number to simulate, by default, a non-recent spawn/death
         count_death = 0,
+        time_death = 10000,
     }
 end
 
@@ -689,7 +696,14 @@ local add_new_notif = function(breed_name, event, data)
             if event == "hybrid" then
                 for _, evt in pairs(constants.events) do
                     mod.active_notifs.table[breed_name]["hybrid"]["count_"..evt] = data[evt]
+                    mod.active_notifs.table[breed_name]["hybrid"]["time_"..evt] = 0
                 end
+                if data["count_spawn"] == 1 then
+                    mod.active_notifs.table[breed_name]["hybrid"]["time_spawn"] = data.notif_age
+                else
+                    mod.active_notifs.table[breed_name]["hybrid"]["time_death"] = data.notif_age
+                end
+                --]]
             else
                 mod.active_notifs.table[breed_name][event].count = 1
             end
@@ -748,8 +762,9 @@ local display_notification = function(breed_name, base_event)
                 local hybrid_notif = notif_element:_notification_by_id(hybrid_id_or_nil)
                 -- Increase the multiplicity counter
                 hybrid_active_notif_info["count_"..base_event] = hybrid_active_notif_info["count_"..base_event] + 1
-                -- Reset notif time:
+                -- Reset notif time
                 hybrid_notif.time = 0
+                hybrid_active_notif_info["time_"..base_event] = 0
                 -- Replay notif sound:
                 local sound_event = settings.notif.sound["enter_"..base_event] --mod:get("sound_"..base_event)--hybrid_notif.enter_sound_event
                 if sound_event then
@@ -760,6 +775,7 @@ local display_notification = function(breed_name, base_event)
                 local data = { }
                 data[base_event] = 1
                 data[other_base_event] = other_evt_active_notif_info.count
+                data.notif_age = notif_element:_notification_by_id(other_evt_id_or_nil).time
                 data.triggering_event = base_event
                 add_new_notif(breed_name, "hybrid", data)
                 Managers.event:trigger("event_remove_notification", other_evt_id_or_nil)
@@ -780,7 +796,7 @@ local display_notification = function(breed_name, base_event)
 end
 
 
-mod.active_notifs.update = function(self)
+mod.active_notifs.update = function(self, dt)
 -- This function is called every tick of mod.update
 -- If the relevant conditions are met, clears all notifs
 -- Otherwise, if the notifs haven't been "cleared" and it's possible that there are notifs to update, updates each active notif to do the following:
@@ -803,18 +819,25 @@ mod.active_notifs.update = function(self)
             local display_name_hybrid = get_breed_presentation_name(breed_name)
             local hybrid_notif = notif_element:_notification_by_id(hybrid_notif_id)
             local hybrid_notif_age = hybrid_notif.time
-            local hybrid_notif_color = settings.color.notif.text_gradient(hybrid_notif_age, get_breed_color(breed_name))
+            local hybrid_notif_age_spawn = hybrid_notif_info.time_spawn
+            local hybrid_notif_age_death = hybrid_notif_info.time_death
+            local hybrid_notif_color = {
+                spawn = settings.color.notif.text_gradient(hybrid_notif_age_spawn, get_breed_color(breed_name)),
+                death = settings.color.notif.text_gradient(hybrid_notif_age_death, get_breed_color(breed_name)),
+            }
             local mltpl_text_hbrd = {}
             for _, evt in pairs(constants.events) do
                 mltpl_text_hbrd[evt] = notif_type == "icon"
                 and tostring(hybrid_notif_info["count_"..evt])
                 or "x"..tostring(hybrid_notif_info["count_"..evt])
-                mltpl_text_hbrd[evt] = TextUtils.apply_color_to_text(mltpl_text_hbrd[evt], hybrid_notif_color)
+                mltpl_text_hbrd[evt] = TextUtils.apply_color_to_text(mltpl_text_hbrd[evt], hybrid_notif_color[evt])
             end
             local hybrid_message_1 = mod:localize("hybrid_message_grouped_1_"..notif_type, display_name_hybrid)
             local hybrid_message_2 = mod:localize("hybrid_message_grouped_2_"..notif_type, mltpl_text_hbrd["spawn"], mltpl_text_hbrd["death"])
             local hybrid_texts = { hybrid_message_1, hybrid_message_2 }
             notif_element:_set_texts(hybrid_notif, hybrid_texts)
+            hybrid_notif_info.time_spawn = hybrid_notif_info.time_spawn + dt
+            hybrid_notif_info.time_death = hybrid_notif_info.time_death + dt
         end
         --> Spawn/death notifs:
         for _, event in pairs(constants.events) do
@@ -861,6 +884,18 @@ end
 
 mod.on_setting_changed = function(setting_id)
 -- Monitor setting changes, and flag changed settings to have the variable used to store them refreshed when they're next needed
+    -- If the changed setting is a sound, play it
+    local sound_name_or_nil = string.match(setting_id, "sound_(.+)$")
+    if sound_name_or_nil then
+        local ui_manager = Managers.ui
+        local new_sound = mod:get(setting_id)
+        local old_sound = settings.notif.sound["enter_"..sound_name_or_nil]
+        if ui_manager and new_sound ~= old_sound then
+            ui_manager:stop_2d_sound(old_sound)
+            ui_manager:play_2d_sound(new_sound)
+            old_sound = new_sound
+        end
+    end
     local is_tracking_method_setting = string.match(setting_id, "(.+)_overlay$") or string.match(setting_id, "(.+)_notif$")
     local is_priority_setting = string.match(setting_id, "(.+)_priority$")
     local is_color_setting = string.match(setting_id, "color_(.+)$")
@@ -871,7 +906,7 @@ mod.on_setting_changed = function(setting_id)
     elseif is_tracking_method_setting then
         mod.tracked_units:init()
         -- NB: mod.tracked_units:init() sets the pos_or_scale flag to true, so no need to do it manually here
-    elseif setting_id == "hud_scale" then
+    elseif setting_id == "hud_scale" or setting_id == "overlay_move_from_center" then
         mod.hud_refresh_flags.pos_or_scale = true
     elseif is_priority_setting then
         mod.hud_refresh_flags.color = true
@@ -942,7 +977,7 @@ mod.update = function(dt)
         end
     end
     -- Update notif text & text color, and clear all mod notifs if needed
-    mod.active_notifs:update()
+    mod.active_notifs:update(dt)
     -- Refresh notif settings if needed
     if mod.hud_refresh_flags.notif then
         settings.notif:init()
