@@ -20,6 +20,7 @@ end
 local trackable_breeds = {
     "chaos_hound",
     "chaos_poxwalker_bomber",
+    "cultist_grenadier",
     "cultist_mutant",
     "flamer",
     "renegade_grenadier",
@@ -396,6 +397,9 @@ overlay_name_sets.short = {
     flamer = {
         en = "FLM",
     },
+    cultist_grenadier = {
+        en = "TOXB",
+    },
     cultist_mutant = {
         en = "MTNT",
     },
@@ -429,6 +433,9 @@ overlay_name_sets.long = {
     flamer = {
         en = "FLAM",
     },
+    cultist_grenadier = {
+        en = "TOXB",
+    },
     cultist_mutant = {
         en = "MUTNT",
     },
@@ -461,6 +468,9 @@ overlay_name_sets.long = {
 overlay_name_sets.full = {
     flamer = {
         en = "Flamer",
+    },
+    cultist_grenadier = {
+        en = "Tox Bmb.",
     },
     cultist_mutant = {
         en = "Mutant",
@@ -514,6 +524,16 @@ loc_raw.mod_ui["flamer_notif_name"] = {
     en = "Flamer"
 }
 
+-------------
+-- Tox Bomber
+
+loc_raw.subcategory["cultist_grenadier"] = {
+    en = "Tox Bomber"
+}
+loc_raw.mod_ui["cultist_grenadier_notif_name"] = {
+    en = "Tox Bomber"
+}
+
 ---------
 -- Mutant
 
@@ -538,10 +558,10 @@ loc_raw.mod_ui["chaos_hound_notif_name"] = {
 -- Bomber
 
 loc_raw.subcategory["renegade_grenadier"] = {
-    en = "Bomber"
+    en = "Scab Bomber"
 }
 loc_raw.mod_ui["renegade_grenadier_notif_name"] = {
-    en = "Bomber"
+    en = "Scab Bomber"
 }
 
 ----------

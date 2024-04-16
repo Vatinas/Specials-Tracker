@@ -238,6 +238,7 @@ constants.trackable_breeds.array = {
     "chaos_plague_ogryn",
     "chaos_poxwalker_bomber",
     "chaos_spawn",
+    "cultist_grenadier",
     "cultist_mutant",
     "flamer",
     "renegade_grenadier",
@@ -389,9 +390,9 @@ local default_overlay_name_style = "short"
 -------------------------------------------------------
 
 local default_overlay_tracking = function(clean_brd_name)
-    if clean_brd_name == "monsters" then
+    if clean_brd_name == "monsters" or clean_brd_name == "cultist_grenadier" or clean_brd_name == "renegade_grenadier" then
         return "only_if_active"
-    elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" then
+    elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" then
         return "always"
     else
         return "off"
@@ -403,7 +404,7 @@ local default_priority_level = function(clean_brd_name)
     -- It will be tostring'd when fetched by the mod (Lua can compare tostring'd digits as part of the default alphabetical order)
     if clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" then
         return 1
-    elseif clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" then
+    elseif clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" or clean_brd_name == "cultist_grenadier" then
         return 2
     else
         return 3

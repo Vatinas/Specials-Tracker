@@ -3,7 +3,7 @@ local mod = get_mod("SpecialsTracker")
 require("scripts/foundation/utilities/math")
 require("scripts/foundation/utilities/color")
 
--- local Breeds = require("scripts/settings/breed/breeds")
+local Breeds = require("scripts/settings/breed/breeds")
 local TextUtils = require("scripts/utilities/ui/text")
 local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
 local ViewElementProfilePresetsSettings = require("scripts/ui/view_elements/view_element_profile_presets/view_element_profile_presets_settings")
@@ -906,7 +906,7 @@ mod.on_setting_changed = function(setting_id)
     elseif is_tracking_method_setting then
         mod.tracked_units:init()
         -- NB: mod.tracked_units:init() sets the pos_or_scale flag to true, so no need to do it manually here
-    elseif setting_id == "hud_scale" then
+    elseif setting_id == "hud_scale" or setting_id == "overlay_move_from_center" then
         mod.hud_refresh_flags.pos_or_scale = true
     elseif is_priority_setting then
         mod.hud_refresh_flags.color = true
