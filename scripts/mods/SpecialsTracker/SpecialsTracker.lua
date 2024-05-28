@@ -77,13 +77,15 @@ mod.hud_refresh_flags = {
 
 util.get_breed_setting = function(breed_name, setting_suffix)
     local breed_options_name = ""
-    if util.is_monster(breed_name) then
+    if string.match(breed_name, "(.+)_wk") then
+        breed_options_name = "monsters_wk"
+    elseif util.is_monster(breed_name) then
         breed_options_name = "monsters"
     else
         breed_options_name = breed_name
     end
     local setting_name = breed_options_name.."_"..setting_suffix
-    if setting_name == "monsters_priority" then
+    if setting_name == "monsters_priority" or setting_name == "monsters_wk_priority" then
         return 0
     else
         return mod:get(setting_name)
@@ -100,24 +102,33 @@ util.sort_breed_names = function(a,b)
     elseif util.is_monster(b) and not util.is_monster(a) then
         return(monsters_bottom)
     else
-        --> Order 2 - Separate by priority levels
-        local priority_a = util.get_breed_setting(a, "priority")
-        local priority_b = util.get_breed_setting(b, "priority")
-        if priority_a < priority_b then
-            return(true)
-        elseif priority_a > priority_b then
-            return(false)
+        --> Order 2 - Weakened monsters below non-weakened monsters
+        local is_weak_a = string.match(a, "(.+)_wk")
+        local is_weak_b = string.match(b, "(.+)_wk")
+        if util.is_monster(a) and util.is_monster(b) and is_weak_b and not is_weak_a then
+            return true
+        elseif util.is_monster(a) and util.is_monster(b) and is_weak_a and not is_weak_b then
+            return false
         else
-            --> Order 3 - Breeds with overlay setting "Always" come before those with "Only if active"
-            local overlay_setting_a = util.get_breed_setting(a, "overlay")
-            local overlay_setting_b = util.get_breed_setting(b, "overlay")
-            if overlay_setting_a == "always" and overlay_setting_b == "only_if_active" then
+            --> Order 3 - Separate by priority levels
+            local priority_a = util.get_breed_setting(a, "priority")
+            local priority_b = util.get_breed_setting(b, "priority")
+            if priority_a < priority_b then
                 return true
-            elseif overlay_setting_b == "always" and overlay_setting_a == "only_if_active" then
+            elseif priority_a > priority_b then
                 return false
             else
-                --> Order 4 - Alphabetical order
-                return(mod:localize(a) < mod:localize(b))
+                --> Order 4 - Breeds with overlay setting "Always" come before those with "Only if active"
+                local overlay_setting_a = util.get_breed_setting(a, "overlay")
+                local overlay_setting_b = util.get_breed_setting(b, "overlay")
+                if overlay_setting_a == "always" and overlay_setting_b == "only_if_active" then
+                    return true
+                elseif overlay_setting_b == "always" and overlay_setting_a == "only_if_active" then
+                    return false
+                else
+                    --> Order 5 - Alphabetical order
+                    return(mod:localize(a) < mod:localize(b))
+                end
             end
         end
     end
@@ -519,10 +530,15 @@ end
 
 
 mod.tracked_units.record_unit_death = function(unit)
+    -- Get breed
     local unit_data_ext = ScriptUnit.extension(unit, "unit_data_system")
     local breed = unit_data_ext and unit_data_ext:breed()
     local raw_breed_name = breed and breed.name
-    local breed_name = raw_breed_name and util.clean_breed_name(raw_breed_name)
+    -- Get weakened boss status
+    local boss_extension = ScriptUnit.has_extension(unit, "boss_system")
+    local is_weakened = boss_extension and boss_extension:is_weakened()
+    -- Get (clean) breed name and tracked units table
+    local breed_name = raw_breed_name and util.clean_breed_name(raw_breed_name, is_weakened)
     local units_table = mod.tracked_units.units[breed_name]
     if not units_table then
         return
@@ -1007,9 +1023,14 @@ end
 mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit, game_object_id, is_husk)
     local game_session = Managers.state.game_session:game_session()
     if GameSession.has_game_object_field(game_session, game_object_id, "breed_id") then
+        -- Get breed
         local breed_id = GameSession.game_object_field(game_session, game_object_id, "breed_id")
         local raw_breed_name = NetworkLookup.breed_names[breed_id]
-        local breed_name = util.clean_breed_name(raw_breed_name)
+        -- Get weakened boss status
+        local boss_extension = ScriptUnit.has_extension(unit, "boss_system")
+        local is_weakened = boss_extension and boss_extension:is_weakened()
+        -- Get (clean) breed name
+        local breed_name = util.clean_breed_name(raw_breed_name, is_weakened)
         local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
         if spawn_record_result.notif then
            display_notification(breed_name, "spawn")

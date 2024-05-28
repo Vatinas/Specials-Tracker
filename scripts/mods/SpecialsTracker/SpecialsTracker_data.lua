@@ -89,22 +89,26 @@ mod.utilities = {
 }
 local util = mod.utilities
 
-
-util.clean_breed_name = function(breed_name)
-    local breed_name_no_mutator_marker = string.match(breed_name, "(.+)_mutator$") or breed_name
-    if string.match(breed_name_no_mutator_marker, "(.+)_flamer") then
-        return "flamer"
-    else
-        return breed_name_no_mutator_marker
-    end
-end
-
 util.is_monster = function(clean_brd_name)
     -- NB: We check if Breeds[clean_brd_name] exists in case the *clean* breed name is, for instance "flamer" which isn't a valid breed
     if Breeds[clean_brd_name] and Breeds[clean_brd_name].tags and Breeds[clean_brd_name].tags.monster then
         return true
     else
-        return false
+        return string.match(clean_brd_name, "(.+)_wk")
+    end
+end
+
+util.clean_breed_name = function(breed_name, is_weakened)
+    local breed_name_no_mutator_marker = string.match(breed_name, "(.+)_mutator$") or breed_name
+    local is_monster = util.is_monster(breed_name_no_mutator_marker)
+    if string.match(breed_name_no_mutator_marker, "(.+)_flamer") then
+        return "flamer"
+    else
+        if is_monster and is_weakened then
+            return breed_name_no_mutator_marker.."_wk"
+        else
+            return breed_name_no_mutator_marker
+        end
     end
 end
 
@@ -234,10 +238,13 @@ end
 
 constants.trackable_breeds.array = {
     "chaos_beast_of_nurgle",
+    "chaos_beast_of_nurgle_wk",
     "chaos_hound",
     "chaos_plague_ogryn",
+    "chaos_plague_ogryn_wk",
     "chaos_poxwalker_bomber",
     "chaos_spawn",
+    "chaos_spawn_wk",
     "cultist_grenadier",
     "cultist_mutant",
     "flamer",
@@ -390,7 +397,7 @@ local default_overlay_name_style = "short"
 -------------------------------------------------------
 
 local default_overlay_tracking = function(clean_brd_name)
-    if clean_brd_name == "monsters" or clean_brd_name == "cultist_grenadier" or clean_brd_name == "renegade_grenadier" then
+    if clean_brd_name == "monsters" or clean_brd_name == "monsters_wk" or clean_brd_name == "cultist_grenadier" or clean_brd_name == "renegade_grenadier" then
         return "only_if_active"
     elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" then
         return "always"
@@ -448,6 +455,13 @@ local default_colors = function(extended_evt_or_priority_lvl)
             g = 0,
             b = 0,
         })
+    elseif extended_evt_or_priority_lvl == "monsters_wk" then
+        return({
+            alpha = 255,
+            r = 255,
+            g = 0,
+            b = 0,
+        })
     elseif extended_evt_or_priority_lvl == "1" then
         return({
             alpha = 255,
@@ -488,7 +502,7 @@ local color_widget = function(extended_evt_or_priority_lvl, alpha_wanted)
         type = "group",
         sub_widgets = { }
     }
-    if extended_evt_or_priority_lvl == "monsters" or table.array_contains(constants.priority_levels_non_zero, extended_evt_or_priority_lvl) then
+    if extended_evt_or_priority_lvl == "monsters" or extended_evt_or_priority_lvl == "monsters_wk" or table.array_contains(constants.priority_levels_non_zero, extended_evt_or_priority_lvl) then
         -- If extended_evt_or_priority_lvl is a priority level, add a widget to determine whether to use the notif color to color the HUD
         table.insert(res.sub_widgets, {
             setting_id = "color_used_in_hud_"..extended_evt_or_priority_lvl,
@@ -541,7 +555,7 @@ local breed_widget = function(clean_brd_name)
     local sub_wid_toggle_notif = {
         setting_id = clean_brd_name.."_notif",
         type = "checkbox",
-        default_value = clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "monsters",
+        default_value = clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "monsters" or clean_brd_name == "monsters_wk",
     }
     local sub_wid_priority_lvl = {
         setting_id = clean_brd_name.."_priority",
@@ -554,6 +568,7 @@ local breed_widget = function(clean_brd_name)
             tonumber(constants.priority_levels_non_zero[#constants.priority_levels_non_zero])
         },
     }
+    --[[
     local sub_wid_monsters_pos = {
         setting_id = "monsters_pos",
         tooltip = "tooltip_monsters_pos",
@@ -561,14 +576,17 @@ local breed_widget = function(clean_brd_name)
         default_value = "bottom",
         options = table.clone(position_dropdown),
     }
-    if clean_brd_name ~= "monsters" then
+    --]]
+    if clean_brd_name ~= "monsters" and clean_brd_name ~= "monsters_wk" then
         table.insert(widget.sub_widgets, sub_wid_priority_lvl)
     end
     table.insert(widget.sub_widgets, sub_wid_toggle_overlay)
     table.insert(widget.sub_widgets, sub_wid_toggle_notif)
+    --[[
     if clean_brd_name == "monsters" then
         table.insert(widget.sub_widgets, sub_wid_monsters_pos)
     end
+    --]]
     return widget
 end
 
@@ -621,6 +639,13 @@ local widgets = {
                 step_size_value = 0.1,
             },
             {
+                setting_id = "monsters_pos",
+                tooltip = "tooltip_monsters_pos",
+                type = "dropdown",
+                default_value = "bottom",
+                options = table.clone(position_dropdown),
+            },
+            {
                 setting_id = "overlay_name_style",
                 tooltip = "tooltip_overlay_name_style",
                 type = "dropdown",
@@ -665,6 +690,7 @@ table.insert(widgets, {
     sub_widgets = { }
 })
 table.insert(widgets[#widgets].sub_widgets, color_widget("monsters", false))
+table.insert(widgets[#widgets].sub_widgets, color_widget("monsters_wk", false))
 for _, i in pairs(constants.priority_levels_non_zero) do
     table.insert(widgets[#widgets].sub_widgets, color_widget(i, false))
 end
@@ -677,6 +703,7 @@ table.insert(widgets, {
     sub_widgets = { }
 })
 table.insert(widgets[#widgets].sub_widgets, breed_widget("monsters"))
+table.insert(widgets[#widgets].sub_widgets, breed_widget("monsters_wk"))
 for _, clean_brd_name in pairs(constants.trackable_breeds.array) do
     if not util.is_monster(clean_brd_name) then
         table.insert(widgets[#widgets].sub_widgets, breed_widget(clean_brd_name))
