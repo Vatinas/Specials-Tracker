@@ -140,6 +140,9 @@ loc_raw.setting = {
     overlay_name_style = {
         en = "Overlay name style",
     },
+    debugging = {
+        en = "Debugging mode",
+    },
 }
 
 for _, i in pairs(priority_lvls) do
@@ -216,6 +219,9 @@ loc_raw.tooltip = {
     },
     tooltip_global_toggle_overlay = {
         en = "\nEnable or disable the display of a permanent overlay, which tracks the number of currently active enemies of certain types.\n\nEach enemy type can have its overlay behaviour changed separately, though setting this to \"off\" disables the overlay globally, regardless of other overlay settings."
+    },
+    tooltip_debugging = {
+        en = "\nLeave this off unless you want to see some dev stuff pop up in the chat. :)",
     },
 }
 

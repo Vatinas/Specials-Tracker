@@ -712,6 +712,7 @@ end
 
 table.insert(widgets, {
     setting_id = "debugging",
+    tooltip = "tooltip_debugging",
     type = "checkbox",
     default_value = false,
 })

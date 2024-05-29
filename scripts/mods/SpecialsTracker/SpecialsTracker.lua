@@ -1035,8 +1035,15 @@ end
 ---------------------------------------------------------------------------
 
 -- Hook the function which adds a new unit
---[[
+---[[
 mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit, game_object_id, is_husk)
+    local is_server = Managers.state.game_session:is_server()
+    if mod:get("debugging") then
+        mod:echo("is_server = "..tostring(is_server))
+    end
+    if not is_server then
+        return
+    end
     local game_session = Managers.state.game_session:game_session()
     if GameSession.has_game_object_field(game_session, game_object_id, "breed_id") then
         -- Get breed
