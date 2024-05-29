@@ -710,6 +710,11 @@ for _, clean_brd_name in pairs(constants.trackable_breeds.array) do
     end
 end
 
+table.insert(widgets, {
+    setting_id = "debugging",
+    type = "checkbox",
+    default_value = false,
+})
 
 return {
     name = mod:localize("mod_name"),

@@ -521,6 +521,21 @@ mod.tracked_units.clean_dead_units = function()
                 nb_of_deaths_per_breed[breed_name] = (nb_of_deaths_per_breed[breed_name] or 0) + 1
             end
         end
+        --[[
+        local is_monster_not_wk = breed_name == "chaos_beast_of_nurgle"
+        or breed_name == "chaos_plague_ogryn"
+        or breed_name == "chaos_spawn"
+        if is_monster_not_wk then
+            for i,unit in pairs(active_units) do
+                local boss_extension = ScriptUnit.has_extension(unit, "boss_system")
+                local is_weakened = boss_extension and boss_extension:is_weakened()
+                if is_weakened then
+                    table.remove(active_units, i)
+                    table.insert(mod.tracked_units.units[breed_name.."_wk"], unit)
+                end
+            end
+        end
+        --]]
     end
     for breed_name, _ in pairs(nb_of_deaths_per_breed) do
         mod.tracked_units.refresh_unit_count(breed_name)
@@ -1020,6 +1035,7 @@ end
 ---------------------------------------------------------------------------
 
 -- Hook the function which adds a new unit
+--[[
 mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit, game_object_id, is_husk)
     local game_session = Managers.state.game_session:game_session()
     if GameSession.has_game_object_field(game_session, game_object_id, "breed_id") then
@@ -1029,11 +1045,70 @@ mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit
         -- Get weakened boss status
         local boss_extension = ScriptUnit.has_extension(unit, "boss_system")
         local is_weakened = boss_extension and boss_extension:is_weakened()
+        --mod:echo("--")
+        --mod:echo("raw_breed_name = "..tostring(raw_breed_name))
+        --mod:echo("boss_extension = "..tostring(boss_extension))
+        --mod:echo("is_weakened = "..tostring(is_weakened))
         -- Get (clean) breed name
         local breed_name = util.clean_breed_name(raw_breed_name, is_weakened)
         local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
         if spawn_record_result.notif then
            display_notification(breed_name, "spawn")
         end
+    end
+end)
+--]]
+--[[
+mod:hook(CLASS.UnitSpawnerManager, "spawn_network_unit", function(func, self, unit_name, unit_template_name, position, rotation, material, ...)
+    local unit, game_object_id = func(self, unit_name, unit_template_name, position, rotation, material, ...)
+    local game_session = Managers.state.game_session:game_session()
+    if GameSession.has_game_object_field(game_session, game_object_id, "breed_id") then
+        -- Get breed
+        local breed_id = GameSession.game_object_field(game_session, game_object_id, "breed_id")
+        local raw_breed_name = NetworkLookup.breed_names[breed_id]
+        -- Get weakened boss status
+        local boss_extension = ScriptUnit.has_extension(unit, "boss_system")
+        local is_weakened = boss_extension and boss_extension:is_weakened()
+        mod:echo("boss_extension = "..tostring(boss_extension))
+        mod:echo("is_weakened = "..tostring(is_weakened))
+        -- Get (clean) breed name
+        local breed_name = util.clean_breed_name(raw_breed_name, is_weakened)
+        local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
+        if spawn_record_result.notif then
+           display_notification(breed_name, "spawn")
+        end
+    end
+end)
+--]]
+
+mod:hook_safe(CLASS.UnitSpawnerManager, "spawn_husk_unit", function(self, game_object_id, owner_id)
+    --local unit = UnitSynchronizer:game_object_id_to_unit(game_object_id)
+    local unit_spawner_manager = Managers.state.unit_spawner
+    if mod:get("debugging") and not unit_spawner_manager then
+        mod:echo("unit_spawner_manager = "..tostring(unit_spawner_manager))
+    end
+    if not unit_spawner_manager then
+        return
+    end
+    local unit = unit_spawner_manager._network_units[game_object_id]
+    -- Get breed
+    local unit_data_ext = ScriptUnit.extension(unit, "unit_data_system")
+    local breed = unit_data_ext and unit_data_ext:breed()
+    local raw_breed_name = breed and breed.name
+    -- Get weakened boss status
+    local boss_extension = ScriptUnit.has_extension(unit, "boss_system")
+    local is_weakened = boss_extension and boss_extension:is_weakened()
+    -- Get clean breed name
+    local breed_name = raw_breed_name and util.clean_breed_name(raw_breed_name, is_weakened)
+    -- Debugging
+    if mod:get("debugging") and constants.trackable_breeds.inv_table[breed_name] then
+        mod:echo("--")
+        mod:echo("raw_breed_name = "..tostring(raw_breed_name))
+        mod:echo("boss_extension = "..tostring(boss_extension))
+        mod:echo("is_weakened = "..tostring(is_weakened))
+    end
+    local spawn_record_result = mod.tracked_units.record_unit_spawn(breed_name, unit)
+    if spawn_record_result.notif then
+       display_notification(breed_name, "spawn")
     end
 end)
