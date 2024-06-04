@@ -1019,9 +1019,15 @@ end
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
--- Hook the functions which adds a new unit:
+--[[
+Two methods are used conjointly to monitor enemy spawns:
 
--- 1. This hook works in private games, but the units don't yet have a boss_extension at this stage in public games, so we can't check if they're weakened. So we only use this hook in private games
+[1] Hooking UnitSpawnerManager._add_network_unit - This function is called in both private and public games, but monsters haven't had their monster extension initialised yet when this function is called in public games (which means their weakened status can't be accessed yet), so it is only used in private games.
+
+[2] Hooking UnitSpawnerManager.spawn_husk_unit - This function is only called in public games, but monsters already have had their monster extension initialised when this is called.
+--]]
+
+-- Monitoring method [1]
 mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit, game_object_id, is_husk)
     local is_server = Managers.state.game_session:is_server()
     if mod:get("debugging") then
@@ -1054,7 +1060,7 @@ mod:hook_safe(CLASS.UnitSpawnerManager, "_add_network_unit", function(self, unit
     end
 end)
 
--- 2. This hook works in public games, and is called after bosses get their boss extension, but the function isn't called in private games at all, which is why we need the other hook for private games
+-- Monitoring method [2]
 mod:hook_safe(CLASS.UnitSpawnerManager, "spawn_husk_unit", function(self, game_object_id, owner_id)
     local unit_spawner_manager = Managers.state.unit_spawner
     if mod:get("debugging") and not unit_spawner_manager then
