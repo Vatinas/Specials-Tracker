@@ -305,6 +305,11 @@ mod.package = {
     end
 }
 
+-------------------------------------
+-- Loading package (once and for all)
+
+mod.package:load()
+
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -999,6 +1004,7 @@ mod.update = function(dt)
         settings.notif:init()
         mod.hud_refresh_flags.notif = false
     end
+    --[[
     -- Start loading the package if needed
     if not mod.package.flags.loading_started
     and mod.package.flags.check_if_in_round()
@@ -1010,6 +1016,7 @@ mod.update = function(dt)
     and not mod.package.flags.check_if_in_round() then
         mod.package:unload()
     end
+    --]]
 end
 
 
