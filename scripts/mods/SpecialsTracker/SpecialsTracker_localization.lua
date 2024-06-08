@@ -27,9 +27,10 @@ local trackable_breeds = {
     "renegade_netgunner",
     "renegade_sniper",
     "monsters",
+    "monsters_wk",
 }
 
-local priority_lvls = {"0", "1", "2", "3", "4", "monsters"}
+local priority_lvls = {"0", "1", "2", "3", "4", "monsters", "monsters_wk"}
 -- NB: We shouldn't need 0 for localisation purposes, but as long as it doesn't add that much unnecessary data, better safe than sorry
 local color_indices = table.clone(priority_lvls)
 table.insert(color_indices, "spawn")
@@ -99,7 +100,11 @@ for _, i in pairs(priority_lvls) do
 end
 
 loc_raw.subcategory["color_monsters"] = {
-    en = "Monsters (priority level 0)",
+    en = "Monsters - Priority level 0",
+}
+
+loc_raw.subcategory["color_monsters_wk"] = {
+    en = "Monsters (Weakened) - Priority level 0",
 }
 
 
@@ -135,6 +140,9 @@ loc_raw.setting = {
     overlay_name_style = {
         en = "Overlay name style",
     },
+    debugging = {
+        en = "Debugging mode",
+    },
 }
 
 for _, i in pairs(priority_lvls) do
@@ -144,7 +152,7 @@ for _, i in pairs(priority_lvls) do
 end
 
 loc_raw.setting["monsters_pos"] = {
-    en = "Position in overlay",
+    en = "Monsters position in overlay",
 }
 
 for _, i in pairs(color_indices) do
@@ -211,6 +219,9 @@ loc_raw.tooltip = {
     },
     tooltip_global_toggle_overlay = {
         en = "\nEnable or disable the display of a permanent overlay, which tracks the number of currently active enemies of certain types.\n\nEach enemy type can have its overlay behaviour changed separately, though setting this to \"off\" disables the overlay globally, regardless of other overlay settings."
+    },
+    tooltip_debugging = {
+        en = "\nLeave this off unless you want to see some dev stuff pop up in the chat. :)",
     },
 }
 
@@ -421,11 +432,20 @@ overlay_name_sets.short = {
     chaos_beast_of_nurgle = {
         en = "BST",
     },
+    chaos_beast_of_nurgle_wk = {
+        en = "BST*",
+    },
     chaos_plague_ogryn = {
         en = "PLG",
     },
+    chaos_plague_ogryn_wk = {
+        en = "PLG*",
+    },
     chaos_spawn = {
         en = "SPWN",
+    },
+    chaos_spawn_wk = {
+        en = "SPWN*",
     },
 }
 
@@ -457,11 +477,20 @@ overlay_name_sets.long = {
     chaos_beast_of_nurgle = {
         en = "BEAST",
     },
+    chaos_beast_of_nurgle_wk = {
+        en = "BEAST*",
+    },
     chaos_plague_ogryn = {
         en = "OGRYN",
     },
+    chaos_plague_ogryn_wk = {
+        en = "OGRYN*",
+    },
     chaos_spawn = {
         en = "SPAWN",
+    },
+    chaos_spawn_wk = {
+        en = "SPAWN*",
     },
 }
 
@@ -493,11 +522,20 @@ overlay_name_sets.full = {
     chaos_beast_of_nurgle = {
         en = "Beast",
     },
+    chaos_beast_of_nurgle_wk = {
+        en = "Beast*",
+    },
     chaos_plague_ogryn = {
         en = "Ogryn",
     },
+    chaos_plague_ogryn_wk = {
+        en = "Ogryn*",
+    },
     chaos_spawn = {
         en = "Spawn",
+    },
+    chaos_spawn_wk = {
+        en = "Spawn*",
     },
 }
 
@@ -603,10 +641,18 @@ loc_raw.subcategory["monsters"] = {
     en = "Monsters"
 }
 
+loc_raw.subcategory["monsters_wk"] = {
+    en = "Monsters (weakened)"
+}
+
 -- Beast of Nurgle - Other locs
 
 loc_raw.mod_ui["chaos_beast_of_nurgle_notif_name"] = {
     en = "BEAST OF NURGLE"
+}
+
+loc_raw.mod_ui["chaos_beast_of_nurgle_wk_notif_name"] = {
+    en = "BEAST OF NURGLE (Weak)"
 }
 
 -- Plague Ogryn - Other locs
@@ -615,10 +661,18 @@ loc_raw.mod_ui["chaos_plague_ogryn_notif_name"] = {
     en = "PLAGUE OGRYN"
 }
 
+loc_raw.mod_ui["chaos_plague_ogryn_wk_notif_name"] = {
+    en = "PLAGUE OGRYN (Weak)"
+}
+
 -- Chaos Spawn - Other locs
 
 loc_raw.mod_ui["chaos_spawn_notif_name"] = {
     en = "CHAOS SPAWN"
+}
+
+loc_raw.mod_ui["chaos_spawn_wk_notif_name"] = {
+    en = "CHAOS SPAWN (Weak)"
 }
 
 
