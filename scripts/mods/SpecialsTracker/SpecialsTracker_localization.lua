@@ -165,7 +165,7 @@ for _, breed_name in pairs(trackable_breeds) do
     loc_raw.setting[breed_name.."_overlay"] = {
         en = "Show in overlay",
     }
-    loc_raw.setting[breed_name.."_notif"] = {
+    loc_raw.setting[breed_name.."_notifs"] = {
         en = "Notifications",
     }
     loc_raw.setting[breed_name.."_priority"] = {
@@ -299,6 +299,18 @@ loc_raw.option = {
     },
     full = {
         en = "Full",
+    },
+    both = {
+        en = "Spawns & Deaths",
+    },
+    spawns = {
+        en = "Spawns only",
+    },
+    deaths = {
+        en = "Deaths only",
+    },
+    neither = {
+        en = "Off",
     },
 }
 
