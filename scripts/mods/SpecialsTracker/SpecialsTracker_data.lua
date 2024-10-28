@@ -384,6 +384,18 @@ for _, i in pairs({
     table.insert(overlay_tracking_dropdown, {text = i, value = i})
 end
 
+
+local notif_tracking_dropdown = { }
+for _, i in pairs({
+    "both",
+    "spawns",
+    "deaths",
+    "neither"
+}) do
+    table.insert(notif_tracking_dropdown, {text = i, value = i})
+end
+
+
 local overlay_name_style = { }
 for _, i in pairs(constants.trackable_breeds.overlay_names.styles) do
     table.insert(overlay_name_style, {text = i, value = i})
@@ -489,6 +501,17 @@ local default_colors = function(extended_evt_or_priority_lvl)
 end
 
 
+local default_notif_tracking = function(clean_brd_name)
+    if clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "monsters" or clean_brd_name == "monsters_wk" then
+        return "both"
+    elseif clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "cultist_grenadier" then
+        return "spawns"
+    else
+        return "neither"
+    end
+end
+
+
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 --                     Widget creation functions
@@ -552,10 +575,13 @@ local breed_widget = function(clean_brd_name)
         default_value = default_overlay_tracking(clean_brd_name),
         options = table.clone(overlay_tracking_dropdown),
     }
-    local sub_wid_toggle_notif = {
-        setting_id = clean_brd_name.."_notif",
-        type = "checkbox",
-        default_value = clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "monsters" or clean_brd_name == "monsters_wk",
+    local sub_wid_notifs = {
+        setting_id = clean_brd_name.."_notifs",
+        type = "dropdown",
+        default_value = default_notif_tracking(clean_brd_name),
+        options = table.clone(notif_tracking_dropdown)
+        --type = "checkbox",
+        --default_value = clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "monsters" or clean_brd_name == "monsters_wk",
     }
     local sub_wid_priority_lvl = {
         setting_id = clean_brd_name.."_priority",
@@ -568,25 +594,11 @@ local breed_widget = function(clean_brd_name)
             tonumber(constants.priority_levels_non_zero[#constants.priority_levels_non_zero])
         },
     }
-    --[[
-    local sub_wid_monsters_pos = {
-        setting_id = "monsters_pos",
-        tooltip = "tooltip_monsters_pos",
-        type = "dropdown",
-        default_value = "bottom",
-        options = table.clone(position_dropdown),
-    }
-    --]]
     if clean_brd_name ~= "monsters" and clean_brd_name ~= "monsters_wk" then
         table.insert(widget.sub_widgets, sub_wid_priority_lvl)
     end
     table.insert(widget.sub_widgets, sub_wid_toggle_overlay)
-    table.insert(widget.sub_widgets, sub_wid_toggle_notif)
-    --[[
-    if clean_brd_name == "monsters" then
-        table.insert(widget.sub_widgets, sub_wid_monsters_pos)
-    end
-    --]]
+    table.insert(widget.sub_widgets, sub_wid_notifs)
     return widget
 end
 

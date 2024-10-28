@@ -188,7 +188,7 @@ for _, breed_name in pairs(trackable_breeds) do
         en = "Show in overlay",
         ["zh-cn"] = "在界面覆盖中显示",
     }
-    loc_raw.setting[breed_name.."_notif"] = {
+    loc_raw.setting[breed_name.."_notifs"] = {
         en = "Notifications",
         ["zh-cn"] = "通知",
     }
@@ -350,6 +350,18 @@ loc_raw.option = {
     full = {
         en = "Full",
         ["zh-cn"] = "完整",
+    },
+    both = {
+        en = "Spawns & Deaths",
+    },
+    spawns = {
+        en = "Spawns only",
+    },
+    deaths = {
+        en = "Deaths only",
+    },
+    neither = {
+        en = "Off",
     },
 }
 

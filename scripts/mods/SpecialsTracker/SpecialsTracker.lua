@@ -425,13 +425,18 @@ mod.tracked_units.units[breed_name]
     An array containing active units of breed_name. Will be tracked to, every tick of update, purge dead units regardless of whether breed_name is tracked or not, but spawned units will only be added to it if the breed is tracked.
 mod.tracked_units.unit_count[breed_name]
     The number of active units of breed_name (which is simply #mod.tracked_units.unit_count[breed_name], but is stored separately to avoid checking the array size at every update tick of the HUD element)
-mod.tracked_units.<tracking method>_breeds_array
-    Array containing the breed names tracked with <tracking_method> ("notif" or "overlay").
+mod.tracked_units.overlay_breeds.array
+    Array containing the breed names tracked with the overlay.
     Array is sorted according to util.sort_breed_names
-mod.tracked_units.<tracking method>_breeds_inv_table
+mod.tracked_units.overlay_breeds.inv_table
     Inverted table corresponding to the former array
 mod.tracked_units.overlay_breeds.only_if_active
     mod.tracked_units.overlay_breeds.only_if_active[breed_name] = true if breed_name should only be shown in the overlay if it's active, nil otherwise
+mod.tracked_units.notif_breeds.[strict event].array
+    Array containing the breed names tracked with notifs for [strict event].
+    Array is sorted according to util.sort_breed_names
+mod.tracked_units.notif_breeds.[strict event].inv_table
+    Inverted table corresponding to the former array
 mod.tracked_units.priority_levels
     mod.tracked_units.priority_levels[breed_name] is the tostring'd version of the breed's priority level
 
@@ -464,8 +469,14 @@ end
 mod.tracked_units.init = function(self)
     self.priority_levels = { }
     self.notif_breeds = {
-        array = { },
-        inv_table = { },
+        spawn = {
+            array = { },
+            inv_table = { },
+        },
+        death = {
+            array = { },
+            inv_table = { },
+        },
     }
     self.overlay_breeds = {
         array = { },
@@ -474,9 +485,14 @@ mod.tracked_units.init = function(self)
     }
     for _, breed_name in pairs(constants.trackable_breeds.array) do
         self.priority_levels[breed_name] = tostring(util.get_breed_setting(breed_name, "priority"))
-        if util.get_breed_setting(breed_name, "notif") then
-            table.insert(self.notif_breeds.array, breed_name)
-            self.notif_breeds.inv_table[breed_name] = true
+        local notif_setting = util.get_breed_setting(breed_name, "notifs")
+        if notif_setting == "both" or notif_setting == "spawns" then
+            table.insert(self.notif_breeds.spawn.array, breed_name)
+            self.notif_breeds.spawn.inv_table[breed_name] = true
+        end
+        if notif_setting == "both" or notif_setting == "deaths" then
+            table.insert(self.notif_breeds.death.array, breed_name)
+            self.notif_breeds.death.inv_table[breed_name] = true
         end
         local overlay_setting = util.get_breed_setting(breed_name, "overlay")
         if overlay_setting == "always" or overlay_setting == "only_if_active" then
@@ -487,7 +503,8 @@ mod.tracked_units.init = function(self)
             self.overlay_breeds.only_if_active[breed_name] = true
         end
     end
-    table.sort(self.notif_breeds.array, util.sort_breed_names)
+    table.sort(self.notif_breeds.spawn.array, util.sort_breed_names)
+    table.sort(self.notif_breeds.death.array, util.sort_breed_names)
     table.sort(self.overlay_breeds.array, util.sort_breed_names)
     mod.hud_refresh_flags.pos_or_scale = true
 end
@@ -554,20 +571,21 @@ mod.tracked_units.record_unit_death = function(unit)
         mod.tracked_units.refresh_unit_count(breed_name)
         return(breed_name)
     else
-        if mod.tracked_units.notif_breeds.inv_table[breed_name] then
+        if mod.tracked_units.notif_breeds.death.inv_table[breed_name] then
             Managers.event:trigger("event_add_notification_message", "alert", { text = "Dead unit was not known to be alive: "..Localize(breed.display_name)})
         end
     end
 end
 
 mod.tracked_units.record_unit_spawn = function(breed_name, unit)
-    local tracked_notif = mod.tracked_units.notif_breeds.inv_table[breed_name]
-    local tracked_overlay = mod.tracked_units.overlay_breeds.inv_table[breed_name]
-    if tracked_notif or tracked_overlay then
+    local notif_tracking_spawn = mod.tracked_units.notif_breeds.spawn.inv_table[breed_name]
+    local notif_tracking_death = mod.tracked_units.notif_breeds.death.inv_table[breed_name]
+    local overlay_tracking = mod.tracked_units.overlay_breeds.inv_table[breed_name]
+    if notif_tracking_spawn or notif_tracking_death or overlay_tracking then
         table.insert(mod.tracked_units.units[breed_name], unit)
         mod.tracked_units.refresh_unit_count(breed_name)
     end
-    return({notif = tracked_notif, overlay = tracked_overlay})
+    return({notif = notif_tracking_spawn, overlay = overlay_tracking})
 end
 
 
@@ -917,7 +935,7 @@ mod.on_setting_changed = function(setting_id)
             old_sound = new_sound
         end
     end
-    local is_tracking_method_setting = string.match(setting_id, "(.+)_overlay$") or string.match(setting_id, "(.+)_notif$")
+    local is_tracking_method_setting = string.match(setting_id, "(.+)_overlay$") or string.match(setting_id, "(.+)_notifs$")
     local is_priority_setting = string.match(setting_id, "(.+)_priority$")
     local is_color_setting = string.match(setting_id, "color_(.+)$")
     local is_notif_setting = string.match(setting_id, "notif_(.+)$") or string.match(setting_id, "sound_(.+)$")
@@ -982,7 +1000,7 @@ Method [2] is more reliable than method [1] when it comes to actually catching e
 -- Monitoring method [1]
 mod:hook_safe(CLASS.MinionDeathManager, "set_dead", function (self, unit, attack_direction, hit_zone_name, damage_profile_name, do_ragdoll_push, herding_template_name)
     local breed_name = mod.tracked_units.record_unit_death(unit)
-    if breed_name and mod.tracked_units.notif_breeds.inv_table[breed_name] then
+    if breed_name and mod.tracked_units.notif_breeds.death.inv_table[breed_name] then
         display_notification(breed_name, "death")
     end
 end)
@@ -991,7 +1009,7 @@ end)
 mod.update = function(dt)
     local nb_of_deaths_per_breed = mod.tracked_units.clean_dead_units()
     for breed_name, nb_of_deaths in pairs(nb_of_deaths_per_breed) do
-        if mod.tracked_units.notif_breeds.inv_table[breed_name] then
+        if mod.tracked_units.notif_breeds.death.inv_table[breed_name] then
             for _ = 1, nb_of_deaths do
                 display_notification(breed_name, "death")
             end
