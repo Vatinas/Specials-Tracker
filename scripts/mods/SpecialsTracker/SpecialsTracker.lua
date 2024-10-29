@@ -175,6 +175,8 @@ constants.trackable_breeds.sort()
 -- See the creation of mod.settings in the data file for a brief summary of what it contains and first definitions
 -- settings is an alias for mod.settings
 
+settings.global_toggle:init()
+
 -------------------------------------------------------
 --                     notif
 -------------------------------------------------------
