@@ -519,6 +519,22 @@ overlay_name_sets.short = {
         en = "SPWN*",
         ["zh-cn"] = "混卵*",
     },
+    chaos_daemonhost = {
+        en = "DH",
+        ["zh-cn"] = "[-]",
+    },
+    chaos_mutator_daemonhost = {
+        en = "HEX DH",
+        ["zh-cn"] = "[-]",
+    },
+    renegade_captain = {
+        en = "CAPN",
+        ["zh-cn"] = "[-]",
+    },
+    renegade_twin_captain = {
+        en = "TWINS",
+        ["zh-cn"] = "[-]",
+    },
 }
 
 overlay_name_sets.long = {
@@ -578,6 +594,22 @@ overlay_name_sets.long = {
         en = "SPAWN*",
         ["zh-cn"] = "混沌卵*",
     },
+    chaos_daemonhost = {
+        en = "DHOST",
+        ["zh-cn"] = "[-]",
+    },
+    chaos_mutator_daemonhost = {
+        en = "HEX DHOST",
+        ["zh-cn"] = "[-]",
+    },
+    renegade_captain = {
+        en = "CAPTAIN",
+        ["zh-cn"] = "[-]",
+    },
+    renegade_twin_captain = {
+        en = "TWINS",
+        ["zh-cn"] = "[-]",
+    },
 }
 
 overlay_name_sets.full = {
@@ -636,6 +668,22 @@ overlay_name_sets.full = {
     chaos_spawn_wk = {
         en = "Spawn*",
         ["zh-cn"] = "混沌魔物*",
+    },
+    chaos_daemonhost = {
+        en = "Daemonhost",
+        ["zh-cn"] = "[-]",
+    },
+    chaos_mutator_daemonhost = {
+        en = "Hex Daemonhost",
+        ["zh-cn"] = "[-]",
+    },
+    renegade_captain = {
+        en = "Captain",
+        ["zh-cn"] = "[-]",
+    },
+    renegade_twin_captain = {
+        en = "Twins",
+        ["zh-cn"] = "[-]",
     },
 }
 
@@ -797,6 +845,34 @@ loc_raw.mod_ui["chaos_spawn_notif_name"] = {
 loc_raw.mod_ui["chaos_spawn_wk_notif_name"] = {
     en = "CHAOS SPAWN (Weak)",
     ["zh-cn"] = "混沌魔物（虚弱）",
+}
+
+-- Daemonhost - Other locs
+
+loc_raw.mod_ui["chaos_daemonhost_notif_name"] = {
+    en = "DAEMONHOST",
+    ["zh-cn"] = "[-]",
+}
+
+-- Hexbound Daemonhost - Other locs
+
+loc_raw.mod_ui["chaos_mutator_daemonhost_notif_name"] = {
+    en = "HEXBOUND DAEMONHOST",
+    ["zh-cn"] = "[-]",
+}
+
+-- Captain - Other locs
+
+loc_raw.mod_ui["renegade_captain_notif_name"] = {
+    en = "CAPTAIN",
+    ["zh-cn"] = "[-]",
+}
+
+-- Twins - Other locs
+
+loc_raw.mod_ui["renegade_twin_captain_notif_name"] = {
+    en = "TWIN CAPTAINS",
+    ["zh-cn"] = "[-]",
 }
 
 

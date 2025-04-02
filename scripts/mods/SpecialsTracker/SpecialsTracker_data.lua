@@ -47,6 +47,7 @@ mod.global_constants = {
         base_background_offset = 14,
 	    -- In pixels, the "padding" required to make the terminal background have its intended size.
 	    -- NB: It looks like this padding is 1. not scale dependent, 2. not horizontal/vertical dependent, and 3. not left/right or top/bottom dependent
+        --[[
         global_offset = function()
             -- Returns the global offset to apply to the overlay, depending on whether it should be moved to a "default" position or not
             if mod:get("overlay_move_from_center") then
@@ -64,6 +65,7 @@ mod.global_constants = {
                 }
             end
         end
+        --]]
     },
     color = {
         non_zero_units = {255, 255, 255, 255},
@@ -91,7 +93,8 @@ local util = mod.utilities
 
 util.is_monster = function(clean_brd_name)
     -- NB: We check if Breeds[clean_brd_name] exists in case the *clean* breed name is, for instance "flamer" which isn't a valid breed
-    if Breeds[clean_brd_name] and Breeds[clean_brd_name].tags and Breeds[clean_brd_name].tags.monster then
+    --if Breeds[clean_brd_name] and Breeds[clean_brd_name].tags and Breeds[clean_brd_name].tags.monster then
+    if Breeds[clean_brd_name] and Breeds[clean_brd_name].is_boss then
         return true
     else
         return string.match(clean_brd_name, "(.+)_wk")
@@ -103,6 +106,10 @@ util.clean_breed_name = function(breed_name, is_weakened)
     local is_monster = util.is_monster(breed_name_no_mutator_marker)
     if string.match(breed_name_no_mutator_marker, "(.+)_flamer") then
         return "flamer"
+    elseif breed_name_no_mutator_marker == "cultist_captain" then
+        return "renegade_captain"
+    elseif breed_name_no_mutator_marker == "renegade_twin_captain_two" then
+        return "renegade_twin_captain"
     else
         if is_monster and is_weakened then
             return breed_name_no_mutator_marker.."_wk"
@@ -239,7 +246,9 @@ end
 constants.trackable_breeds.array = {
     "chaos_beast_of_nurgle",
     "chaos_beast_of_nurgle_wk",
+    "chaos_daemonhost", --new
     "chaos_hound",
+    "chaos_mutator_daemonhost", --new
     "chaos_plague_ogryn",
     "chaos_plague_ogryn_wk",
     "chaos_poxwalker_bomber",
@@ -248,9 +257,11 @@ constants.trackable_breeds.array = {
     "cultist_grenadier",
     "cultist_mutant",
     "flamer",
+    "renegade_captain", --new - made to contain breeds "renegade_captain" and "cultist_captain"
     "renegade_grenadier",
     "renegade_netgunner",
     "renegade_sniper",
+    "renegade_twin_captain", --new - made to contain breeds "renegade_twin_captain" and "renegade_twin_captain_two"
 }
 constants.trackable_breeds.inv_table = {}
 
