@@ -47,6 +47,7 @@ mod.global_constants = {
         base_background_offset = 14,
 	    -- In pixels, the "padding" required to make the terminal background have its intended size.
 	    -- NB: It looks like this padding is 1. not scale dependent, 2. not horizontal/vertical dependent, and 3. not left/right or top/bottom dependent
+        --[[
         global_offset = function()
             -- Returns the global offset to apply to the overlay, depending on whether it should be moved to a "default" position or not
             if mod:get("overlay_move_from_center") then
@@ -64,6 +65,7 @@ mod.global_constants = {
                 }
             end
         end
+        --]]
     },
     color = {
         non_zero_units = {255, 255, 255, 255},
@@ -86,12 +88,14 @@ mod.utilities = {
     sort_breed_names = nil,
     clean_breed_name = nil,
     is_monster = nil,
+    is_weakened = nil,
 }
 local util = mod.utilities
 
 util.is_monster = function(clean_brd_name)
     -- NB: We check if Breeds[clean_brd_name] exists in case the *clean* breed name is, for instance "flamer" which isn't a valid breed
-    if Breeds[clean_brd_name] and Breeds[clean_brd_name].tags and Breeds[clean_brd_name].tags.monster then
+    --if Breeds[clean_brd_name] and Breeds[clean_brd_name].tags and Breeds[clean_brd_name].tags.monster then
+    if Breeds[clean_brd_name] and Breeds[clean_brd_name].is_boss then
         return true
     else
         return string.match(clean_brd_name, "(.+)_wk")
@@ -103,6 +107,10 @@ util.clean_breed_name = function(breed_name, is_weakened)
     local is_monster = util.is_monster(breed_name_no_mutator_marker)
     if string.match(breed_name_no_mutator_marker, "(.+)_flamer") then
         return "flamer"
+    elseif breed_name_no_mutator_marker == "cultist_captain" then
+        return "renegade_captain"
+    elseif breed_name_no_mutator_marker == "renegade_twin_captain_two" then
+        return "renegade_twin_captain"
     else
         if is_monster and is_weakened then
             return breed_name_no_mutator_marker.."_wk"
@@ -121,6 +129,49 @@ util.monster_then_alphabetical_order = function(a,b)
     else
         return(mod:localize(a) < mod:localize(b))
     end
+end
+
+util.is_weakened = function(unit)
+    local unit_data_ext = ScriptUnit.extension(unit, "unit_data_system")
+    local breed = unit_data_ext and unit_data_ext:breed()
+    local is_weakened = false
+
+    if not breed then
+        --mod:echo("Error: breed = nil")
+        return is_weakened
+    end
+
+    if not breed.is_boss or breed.ignore_weakened_boss_name then
+        return is_weakened
+    end
+
+    local health_extension = ScriptUnit.extension(unit, "health_system")
+    local max_health = health_extension and health_extension:max_health()
+    local initial_max_health = max_health and math.floor(Managers.state.difficulty:get_minion_max_health(breed.name))
+
+    if not initial_max_health then
+        return is_weakened
+    end
+
+    if max_health < initial_max_health then
+        is_weakened = true
+    else
+        local havoc_mananger = Managers.state.havoc
+
+        if havoc_mananger:is_havoc() then
+            local havoc_health_override_value = havoc_mananger:get_modifier_value("modify_monster_health")
+
+            if havoc_health_override_value then
+                local multiplied_max_health = initial_max_health + initial_max_health * havoc_health_override_value
+
+                if max_health < multiplied_max_health then
+                    is_weakened = true
+                end
+            end
+        end
+    end
+
+    return is_weakened
 end
 
 
@@ -239,7 +290,9 @@ end
 constants.trackable_breeds.array = {
     "chaos_beast_of_nurgle",
     "chaos_beast_of_nurgle_wk",
+    "chaos_daemonhost", --new
     "chaos_hound",
+    "chaos_mutator_daemonhost", --new
     "chaos_plague_ogryn",
     "chaos_plague_ogryn_wk",
     "chaos_poxwalker_bomber",
@@ -248,9 +301,11 @@ constants.trackable_breeds.array = {
     "cultist_grenadier",
     "cultist_mutant",
     "flamer",
+    "renegade_captain", --new - made to contain breeds "renegade_captain" and "cultist_captain"
     "renegade_grenadier",
     "renegade_netgunner",
     "renegade_sniper",
+    "renegade_twin_captain", --new - made to contain breeds "renegade_twin_captain" and "renegade_twin_captain_two"
 }
 constants.trackable_breeds.inv_table = {}
 

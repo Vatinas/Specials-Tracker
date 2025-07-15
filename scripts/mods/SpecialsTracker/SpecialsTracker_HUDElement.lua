@@ -156,7 +156,7 @@ mod.hud_dimensions.init = function(self)
 		local screen_size = UIWorkspaceSettings.screen.size
 		self.global_offset = {
 			800 * screen_size[1]/1920,
-			-200 * screen_size[2]/1080,
+			-100 * screen_size[2]/1080,
 			0,
 		}
 	else
