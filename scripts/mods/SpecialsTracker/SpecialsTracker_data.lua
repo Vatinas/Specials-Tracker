@@ -156,10 +156,10 @@ util.is_weakened = function(unit)
     if max_health < initial_max_health then
         is_weakened = true
     else
-        local havoc_mananger = Managers.state.havoc
-
-        if havoc_mananger:is_havoc() then
-            local havoc_health_override_value = havoc_mananger:get_modifier_value("modify_monster_health")
+        local is_havoc = Managers.state.difficulty:get_parsed_havoc_data()
+        if is_havoc then
+            local havoc_extension = Managers.state.game_mode:game_mode():extension("havoc")
+            local havoc_health_override_value = havoc_extension:get_modifier_value("modify_monster_health")
 
             if havoc_health_override_value then
                 local multiplied_max_health = initial_max_health + initial_max_health * havoc_health_override_value
