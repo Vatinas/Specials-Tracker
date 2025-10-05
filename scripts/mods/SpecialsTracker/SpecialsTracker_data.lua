@@ -290,9 +290,9 @@ end
 constants.trackable_breeds.array = {
     "chaos_beast_of_nurgle",
     "chaos_beast_of_nurgle_wk",
-    "chaos_daemonhost", --new
+    "chaos_daemonhost",
     "chaos_hound",
-    "chaos_mutator_daemonhost", --new
+    "chaos_mutator_daemonhost",
     "chaos_plague_ogryn",
     "chaos_plague_ogryn_wk",
     "chaos_poxwalker_bomber",
@@ -301,11 +301,12 @@ constants.trackable_breeds.array = {
     "cultist_grenadier",
     "cultist_mutant",
     "flamer",
-    "renegade_captain", --new - made to contain breeds "renegade_captain" and "cultist_captain"
+    "renegade_captain", -- Made to contain breeds "renegade_captain" and "cultist_captain"
     "renegade_grenadier",
     "renegade_netgunner",
+    "renegade_plasma_gunner", --new
     "renegade_sniper",
-    "renegade_twin_captain", --new - made to contain breeds "renegade_twin_captain" and "renegade_twin_captain_two"
+    "renegade_twin_captain", -- Made to contain breeds "renegade_twin_captain" and "renegade_twin_captain_two"
 }
 constants.trackable_breeds.inv_table = {}
 
@@ -452,7 +453,7 @@ local default_overlay_name_style = "short"
 -------------------------------------------------------
 
 local default_overlay_tracking = function(clean_brd_name)
-    if clean_brd_name == "monsters" or clean_brd_name == "monsters_wk" or clean_brd_name == "cultist_grenadier" or clean_brd_name == "renegade_grenadier" then
+    if clean_brd_name == "monsters" or clean_brd_name == "monsters_wk" or clean_brd_name == "cultist_grenadier" or clean_brd_name == "renegade_grenadier" or clean_brd_name == "renegade_plasma_gunner" then
         return "only_if_active"
     elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" then
         return "always"
@@ -464,7 +465,7 @@ end
 local default_priority_level = function(clean_brd_name)
     -- This will be the value of the priority_lvl setting, and not an index, so it needs to be an integer
     -- It will be tostring'd when fetched by the mod (Lua can compare tostring'd digits as part of the default alphabetical order)
-    if clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" then
+    if clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "renegade_plasma_gunner" then
         return 1
     elseif clean_brd_name == "chaos_poxwalker_bomber" or clean_brd_name == "renegade_grenadier" or clean_brd_name == "cultist_grenadier" then
         return 2

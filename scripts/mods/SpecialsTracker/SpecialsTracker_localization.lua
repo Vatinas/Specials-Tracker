@@ -25,6 +25,7 @@ local trackable_breeds = {
     "flamer",
     "renegade_grenadier",
     "renegade_netgunner",
+    "renegade_plasma_gunner",
     "renegade_sniper",
     "monsters",
     "monsters_wk",
@@ -550,6 +551,10 @@ overlay_name_sets.short = {
         ["zh-cn"] = "陷阱",
         ["zh-tw"] = "陷阱",
     },
+    renegade_plasma_gunner = {
+        en = "PLSM",
+        -- Needs loc
+    },
     renegade_sniper = {
         en = "SNP",
         ["zh-cn"] = "狙击",
@@ -643,6 +648,10 @@ overlay_name_sets.long = {
         ["zh-cn"] = "陷阱手",
         ["zh-tw"] = "陷阱手",
     },
+    renegade_plasma_gunner = {
+        en = "PLASM",
+        -- Needs loc
+    },
     renegade_sniper = {
         en = "SNIP",
         ["zh-cn"] = "狙击手",
@@ -735,6 +744,10 @@ overlay_name_sets.full = {
         en = "Trapper",
         ["zh-cn"] = "陷阱手",
         ["zh-tw"] = "陷阱手",
+    },
+    renegade_plasma_gunner = {
+        en = "Plasma",
+        -- Needs loc
     },
     renegade_sniper = {
         en = "Sniper",
@@ -893,6 +906,18 @@ loc_raw.mod_ui["renegade_netgunner_notif_name"] = {
     en = "Trapper",
     ["zh-cn"] = "陷阱手",
     ["zh-tw"] = "陷阱兵",
+}
+
+----------------
+-- Plasma gunner
+
+loc_raw.subcategory["renegade_plasma_gunner"] = {
+    en = "Plasma Gunner",
+    -- Needs loc
+}
+loc_raw.mod_ui["renegade_plasma_gunner_notif_name"] = {
+    en = "Plasma Gunner",
+    -- Needs loc
 }
 
 ---------
