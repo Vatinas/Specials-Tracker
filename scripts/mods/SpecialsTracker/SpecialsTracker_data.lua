@@ -288,11 +288,13 @@ end
 -- constants.trackable_breeds.sort() is defined in the main file
 
 constants.trackable_breeds.array = {
+    "chaos_armored_hound",
     "chaos_beast_of_nurgle",
     "chaos_beast_of_nurgle_wk",
     "chaos_daemonhost",
     "chaos_hound",
     "chaos_mutator_daemonhost",
+    "chaos_ogryn_houndmaster",
     "chaos_plague_ogryn",
     "chaos_plague_ogryn_wk",
     "chaos_poxwalker_bomber",
@@ -304,7 +306,7 @@ constants.trackable_breeds.array = {
     "renegade_captain", -- Made to contain breeds "renegade_captain" and "cultist_captain"
     "renegade_grenadier",
     "renegade_netgunner",
-    "renegade_plasma_gunner", --new
+    "renegade_plasma_gunner",
     "renegade_sniper",
     "renegade_twin_captain", -- Made to contain breeds "renegade_twin_captain" and "renegade_twin_captain_two"
 }
@@ -453,7 +455,7 @@ local default_overlay_name_style = "short"
 -------------------------------------------------------
 
 local default_overlay_tracking = function(clean_brd_name)
-    if clean_brd_name == "monsters" or clean_brd_name == "monsters_wk" or clean_brd_name == "cultist_grenadier" or clean_brd_name == "renegade_grenadier" or clean_brd_name == "renegade_plasma_gunner" then
+    if clean_brd_name == "monsters" or clean_brd_name == "monsters_wk" or clean_brd_name == "cultist_grenadier" or clean_brd_name == "renegade_grenadier" or clean_brd_name == "renegade_plasma_gunner" or clean_brd_name == "chaos_armored_hound" then
         return "only_if_active"
     elseif clean_brd_name == "renegade_sniper" or clean_brd_name == "renegade_netgunner" or clean_brd_name == "chaos_poxwalker_bomber" then
         return "always"
