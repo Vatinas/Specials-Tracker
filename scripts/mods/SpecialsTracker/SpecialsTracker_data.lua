@@ -725,6 +725,12 @@ local widgets = {
                 default_value = default_font,
                 options = font_options,
             },
+            {
+                setting_id = "show_overlay_background",
+                tooltip = "tooltip_show_overlay_background",
+                type = "checkbox",
+                default_value = true,
+            },
         }
     },
 }

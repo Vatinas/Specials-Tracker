@@ -177,6 +177,11 @@ loc_raw.setting = {
         ["zh-cn"] = "界面覆盖名称样式",
         ["zh-tw"] = "介面疊加名稱樣式",
     },
+    show_overlay_background = {
+        en = "Overlay background",
+        -- Need loc - ["zh-cn"] = 
+        -- Need loc - ["zh-tw"] = 
+    },
     debugging = {
         en = "Debugging mode",
         ["zh-cn"] = "调试模式",
@@ -292,6 +297,9 @@ loc_raw.tooltip = {
         en = "\nEnable or disable the display of a permanent overlay, which tracks the number of currently active enemies of certain types.\n\nEach enemy type can have its overlay behaviour changed separately, though setting this to \"off\" disables the overlay globally, regardless of other overlay settings.",
         ["zh-cn"] = "\n显示或隐藏永久界面覆盖，用于跟踪当前存活的特定敌人数量。\n\n每种敌人可以单独配置界面覆盖选项，但如果禁用此全局选项，则单独的选项会被忽略。",
         ["zh-tw"] = "\n顯示或隱藏永久的介面疊加，用來追蹤目前存活的特定敵人數量。\n\n每種敵人可以單獨配置介面疊加選項，但若停用此全域選項，則單獨的選項會被忽略。",
+    },
+    tooltip_show_overlay_background = {
+        en = "\nShow a background behind, and borders around the overlay to make it easier to read."
     },
     tooltip_debugging = {
         en = "\nLeave this off unless you want to see some dev stuff pop up in the chat. :)",

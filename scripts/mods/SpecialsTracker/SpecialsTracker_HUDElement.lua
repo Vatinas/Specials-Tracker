@@ -91,7 +91,9 @@ local show_breed = function(breed_name)
 end
 
 local show_background = function()
-	return settings.global_toggle.overlay and mod.hud_dimensions.nb_of_displayed_breeds ~= 0
+	return settings.global_toggle.overlay
+	and mod.hud_dimensions.nb_of_displayed_breeds ~= 0
+	and mod:get("show_overlay_background")
 end
 
 
