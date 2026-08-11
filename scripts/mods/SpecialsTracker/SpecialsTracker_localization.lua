@@ -20,6 +20,7 @@ end
 local trackable_breeds = {
     "chaos_armored_hound",
     "chaos_hound",
+    "chaos_armored_hound",    -- New Expedition Enemy
     "chaos_poxwalker_bomber",
     "cultist_grenadier",
     "cultist_mutant",
@@ -550,6 +551,16 @@ overlay_name_sets.short = {
         ["zh-cn"] = "猎犬",
         ["zh-tw"] = "獵犬",
     },
+    chaos_ogryn_houndmaster = {
+        en = "MSTR",
+        ["zh-cn"] = "驯兽",
+        ["zh-tw"] = "馴獸",
+    }, -- Expedition Update
+    chaos_armored_hound = {
+        en = "AHD",
+        ["zh-cn"] = "甲犬",
+        ["zh-tw"] = "甲犬",
+    }, -- Expedition Update
     renegade_grenadier = {
         en = "BMB",
         ["zh-cn"] = "火雷",

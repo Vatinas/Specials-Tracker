@@ -300,6 +300,8 @@ constants.trackable_breeds.array = {
     "chaos_poxwalker_bomber",
     "chaos_spawn",
     "chaos_spawn_wk",
+    "chaos_ogryn_houndmaster", -- Expedition Update
+    "chaos_armored_hound", -- Expedition Update
     "cultist_grenadier",
     "cultist_mutant",
     "flamer",
@@ -760,7 +762,7 @@ for _, i in pairs(constants.priority_levels_non_zero) do
 end
 
 -- Add Breed widgets
--- NB: Each interesting_breed_name has its own widget, *except* monsters (beast/chaos spawn/plague ogryn) which are collapsed into one "monsters" widget (but they are still tracked separately)
+-- NB: Each interesting_breed_name has its own widget, *except* monsters (beast/chaos spawn/plague ogryn/packmaster) which are collapsed into one "monsters" widget (but they are still tracked separately)
 table.insert(widgets, {
     setting_id = "breed_widgets",
     type = "group",
